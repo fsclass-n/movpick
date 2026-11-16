@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faArrowsRotate, faCircleCheck, faCircleNotch, faCircleXmark, faClock, faDatabase, faEye, faMagnifyingGlass, faPlay, faRobot,
-  faStethoscope, faTowerBroadcast, faUserShield, faUsers,
+  faLock, faStethoscope, faTowerBroadcast, faUserShield, faUsers,
 } from '@fortawesome/free-solid-svg-icons'
 import { Spinner } from '../components/Guards'
 import { useAuth } from '../context/AuthContext'
@@ -127,15 +127,15 @@ function CrawlerTab() {
           <div className="mt-5 flex items-end gap-2 border-t border-line pt-4">
             <label className="flex-1 text-xs text-muted">
               <FontAwesomeIcon icon={faClock} className="mr-1" />크롤링 주기(분)
-              <input type="number" min={5} max={1440} value={interval} disabled={ro} onChange={(e) => setIntervalMin(e.target.value)} className="input mt-1 py-2 disabled:opacity-50" />
+              <input type="number" min={5} max={1440} value={interval} onChange={(e) => setIntervalMin(e.target.value)} className="input mt-1 py-2 disabled:opacity-50" />
             </label>
-            <button onClick={() => saveConfig()} disabled={ro} title={ro ? RO_TITLE : ''} className="btn-ghost">저장</button>
-            <button onClick={() => saveConfig(!status.enabled)} disabled={ro} title={ro ? RO_TITLE : ''} className="btn-ghost">{status.enabled ? '일시정지' : '재개'}</button>
+            <button onClick={() => saveConfig()} title={ro ? RO_TITLE : ''} className="btn-ghost">{ro && <FontAwesomeIcon icon={faLock} className="text-gold" />}저장</button>
+            <button onClick={() => saveConfig(!status.enabled)} title={ro ? RO_TITLE : ''} className="btn-ghost">{status.enabled ? '일시정지' : '재개'}</button>
           </div>
           <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <button onClick={() => run()} disabled={status.running || ro} title={ro ? RO_TITLE : ''} className="btn-primary col-span-2 sm:col-span-1"><FontAwesomeIcon icon={faPlay} /> 전체</button>
+            <button onClick={() => run()} disabled={status.running} title={ro ? RO_TITLE : ''} className="btn-primary col-span-2 sm:col-span-1"><FontAwesomeIcon icon={ro ? faLock : faPlay} /> 전체</button>
             {status.chains.map((c) => (
-              <button key={c} onClick={() => run(c)} disabled={status.running || ro} title={ro ? RO_TITLE : ''} className="btn-ghost text-xs">{CHAINS[c]?.label}</button>
+              <button key={c} onClick={() => run(c)} disabled={status.running} title={ro ? RO_TITLE : ''} className="btn-ghost text-xs">{CHAINS[c]?.label}</button>
             ))}
           </div>
           <div className="mt-4 rounded-xl border border-line bg-surface-2/60 p-3">
@@ -249,7 +249,7 @@ function UsersTab() {
               </div>
               <div className="flex rounded-xl border border-line bg-surface-2 p-1 text-xs" role="radiogroup" aria-label={`${u.name} 권한`}>
                 {[['user', '일반 사용자'], ['admin', '관리자']].map(([r, label]) => (
-                  <button key={r} role="radio" aria-checked={u.role === r} title={ro ? RO_TITLE : ''} disabled={ro || pending === u.id || u.role === r || (u.id === me.id && r === 'user')}
+                  <button key={r} role="radio" aria-checked={u.role === r} title={ro ? RO_TITLE : ''} disabled={pending === u.id || u.role === r || (u.id === me.id && r === 'user')}
                     onClick={() => changeRole(u, r)}
                     className={`rounded-lg px-3 py-1.5 font-semibold transition disabled:cursor-default ${u.role === r ? (r === 'admin' ? 'bg-gold text-ink' : 'bg-fg text-ink') : 'text-muted hover:text-fg'}`}>
                     {pending === u.id && u.role !== r ? <FontAwesomeIcon icon={faCircleNotch} spin /> : label}
@@ -274,7 +274,7 @@ export default function Admin() {
       {isReadOnly && (
         <div className="mt-4 flex items-start gap-3 rounded-2xl border border-gold/40 bg-gold-soft px-4 py-3 text-sm" role="note">
           <FontAwesomeIcon icon={faEye} className="mt-0.5 text-gold" />
-          <p><span className="font-semibold text-gold">읽기 전용 모드</span> · 테스트 관리자 계정은 대시보드와 로그 조회만 가능하며, 크롤러 실행·설정 변경·회원 권한 변경은 할 수 없습니다.</p>
+          <p><span className="font-semibold text-gold">읽기 전용 모드</span> · 테스트 관리자 계정은 대시보드와 로그 조회만 가능합니다. 크롤러 실행·설정 변경·회원 권한 변경은 서버가 거부합니다(403).</p>
         </div>
       )}
       <div className="mt-6 flex gap-2 border-b border-line" role="tablist">

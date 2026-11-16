@@ -37,6 +37,10 @@ services:
         value: "true"
       - key: CRAWL_INTERVAL_MINUTES
         value: "30"
+      - key: RPA_REMOTE_CHAINS
+        value: cgv
+      - key: RPA_INGEST_TOKEN
+        sync: false
       - key: GOOGLE_CLIENT_ID
         sync: false
       - key: GOOGLE_CLIENT_SECRET

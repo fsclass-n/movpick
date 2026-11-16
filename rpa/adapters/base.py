@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from datetime import date, datetime, timedelta
+from urllib.parse import urlsplit
 
 from ..models import ShowtimeData
 
@@ -24,9 +25,24 @@ class BaseAdapter(ABC):
     chain: str = ""
     label: str = ""
 
-    def __init__(self, timeout: int = 20, headless: bool = True):
+    def __init__(self, timeout: int = 20, headless: bool = True, proxy: str | None = None):
         self.timeout = timeout
         self.headless = headless
+        self.proxy = proxy or None
+
+    @property
+    def requests_proxies(self) -> dict | None:
+        return {"http": self.proxy, "https": self.proxy} if self.proxy else None
+
+    @property
+    def playwright_proxy(self) -> dict | None:
+        if not self.proxy:
+            return None
+        u = urlsplit(self.proxy)
+        cfg = {"server": f"{u.scheme}://{u.hostname}:{u.port}" if u.port else f"{u.scheme}://{u.hostname}"}
+        if u.username:
+            cfg |= {"username": u.username, "password": u.password or ""}
+        return cfg
 
     @abstractmethod
     def fetch(self, day: date) -> list[ShowtimeData]:

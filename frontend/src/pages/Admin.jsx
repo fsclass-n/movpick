@@ -32,7 +32,7 @@ function StatusBadge({ status, source }) {
       <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${ok ? 'bg-mint/15 text-mint' : 'bg-accent/15 text-accent'}`}>
         <FontAwesomeIcon icon={ok ? faCircleCheck : faCircleXmark} /> {ok ? '성공' : '실패'}
       </span>
-      <span className={`rounded-full px-2 py-0.5 text-[11px] ${source === 'real' ? 'bg-sky/15 text-sky' : 'bg-surface-2 text-muted'}`}>{source === 'real' ? 'REAL' : 'MOCK'}</span>
+      <span className={`rounded-full px-2 py-0.5 text-[11px] ${source === 'mock' ? 'bg-surface-2 text-muted' : 'bg-sky/15 text-sky'}`}>{source.toUpperCase()}</span>
     </span>
   )
 }
@@ -100,6 +100,17 @@ function CrawlerTab() {
             <dt className="text-muted">마지막 실행</dt><dd>{fmtDateTime(status.last_finished_at)}</dd>
             <dt className="text-muted">다음 실행</dt><dd>{status.enabled ? fmtDateTime(status.next_run_at) : '-'}</dd>
             <dt className="text-muted">좌석 모니터</dt><dd>{status.seat_monitor_interval_seconds}초 주기</dd>
+            <dt className="text-muted">국내 프록시</dt><dd>{status.proxy ? '사용' : '미사용'}</dd>
+            {status.remote_chains?.length > 0 && (
+              <>
+                <dt className="text-muted">원격 수집기</dt>
+                <dd className="space-y-0.5">
+                  {status.remote_chains.map((c) => (
+                    <p key={c}>{CHAINS[c]?.label || c} · {status.remote[c] ? `${fmtDateTime(status.remote[c].at)} (${status.remote[c].collector})` : <span className="text-gold">수신 대기</span>}</p>
+                  ))}
+                </dd>
+              </>
+            )}
           </dl>
           <div className="mt-5 flex items-end gap-2 border-t border-line pt-4">
             <label className="flex-1 text-xs text-muted">

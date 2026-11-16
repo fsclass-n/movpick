@@ -23,6 +23,7 @@ class MegaboxAdapter(BaseAdapter):
         de = day.strftime("%Y%m%d")
         items: list[ShowtimeData] = []
         with requests.Session() as s:
+            s.proxies.update(self.requests_proxies or {})
             s.headers.update({"User-Agent": USER_AGENT, "Referer": "https://www.megabox.co.kr/"})
             for brch in BRANCHES:
                 body = {"masterType": "brch", "detailType": "area", "brchNo": brch, "firstAt": "Y",

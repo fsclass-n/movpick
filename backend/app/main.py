@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 from contextlib import asynccontextmanager, suppress
 
 from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
@@ -9,7 +10,7 @@ from sqlalchemy import func, select, text
 from .config import settings
 from .db import Base, SessionLocal, engine
 from .models import Showtime
-from .routers import admin, auth, showtimes, watches
+from .routers import admin, auth, rpa, showtimes, watches
 from .routers.auth import ensure_demo_user
 from .security import user_from_token
 from .services.crawler import crawler
@@ -52,7 +53,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-for r in (auth.router, showtimes.router, watches.router, admin.router):
+for r in (auth.router, showtimes.router, watches.router, admin.router, rpa.router):
     app.include_router(r)
 
 
@@ -66,7 +67,8 @@ def health():
     with SessionLocal() as db:
         db.execute(text("SELECT 1"))
         count = db.scalar(select(func.count()).select_from(Showtime))
-    return {"status": "ok", "db": engine.dialect.name, "showtimes": count, "ws_connections": manager.count,
+    return {"status": "ok", "commit": os.getenv("RENDER_GIT_COMMIT", "local")[:7], "db": engine.dialect.name,
+            "showtimes": count, "ws_connections": manager.count,
             "crawler": {"enabled": crawler.enabled, "running": crawler.running, "mode": settings.rpa_mode}}
 
 

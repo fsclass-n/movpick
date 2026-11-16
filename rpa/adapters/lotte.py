@@ -17,6 +17,7 @@ class LotteAdapter(BaseAdapter):
     def fetch(self, day: date) -> list[ShowtimeData]:
         items: list[ShowtimeData] = []
         with requests.Session() as s:
+            s.proxies.update(self.requests_proxies or {})
             s.headers.update({"User-Agent": USER_AGENT, "Referer": "https://www.lottecinema.co.kr/"})
             for cinema in CINEMAS:
                 param = {"MethodName": "GetPlaySequence", "channelType": "HO", "osType": "W",

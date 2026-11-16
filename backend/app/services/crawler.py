@@ -4,7 +4,7 @@ import asyncio
 import logging
 from datetime import date, datetime, timedelta
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, exists, select
 
 from rpa import seatmap
 from rpa.models import CrawlResult
@@ -22,6 +22,8 @@ def persist(result: CrawlResult, trigger: str) -> int:
     """수집 결과를 showtimes 테이블에 upsert 하고 crawl_logs 기록."""
     result.items = list({i.external_id: i for i in result.items}.values())
     with SessionLocal() as db:
+        if result.source == "real" and result.day and result.items:
+            _purge_mock(db, result.chain, result.day)
         existing = {
             s.external_id: s
             for s in db.scalars(select(Showtime).where(
@@ -58,6 +60,32 @@ def persist(result: CrawlResult, trigger: str) -> int:
         return len(result.items)
 
 
+def day_window(day: date) -> tuple[datetime, datetime]:
+    start = datetime(day.year, day.month, day.day)
+    return start, start + timedelta(days=1, hours=6)
+
+
+def _purge_mock(db, chain: str, day: date) -> None:
+    """실데이터가 들어오면 같은 체인·일자의 모의 데이터를 제거해 혼재를 방지."""
+    start, end = day_window(day)
+    ids = select(Showtime.id).where(Showtime.chain == chain, Showtime.source == "mock",
+                                    Showtime.start_at >= start, Showtime.start_at < end)
+    db.execute(delete(SeatWatch).where(SeatWatch.showtime_id.in_(ids)))
+    db.execute(delete(Showtime).where(Showtime.chain == chain, Showtime.source == "mock",
+                                      Showtime.start_at >= start, Showtime.start_at < end))
+
+
+def has_fresh_real(chain: str, day: date) -> bool:
+    """TTL 이내에 갱신된 실데이터가 있으면 True (수집 실패 시 모의 데이터로 덮어쓰지 않음)."""
+    start, end = day_window(day)
+    since = datetime.now() - timedelta(minutes=settings.rpa_real_ttl_minutes)
+    with SessionLocal() as db:
+        return bool(db.scalar(select(exists().where(
+            Showtime.chain == chain, Showtime.source == "real", Showtime.start_at >= start,
+            Showtime.start_at < end, Showtime.updated_at >= since,
+        ))))
+
+
 def log_failure(result: CrawlResult, trigger: str) -> None:
     with SessionLocal() as db:
         db.add(CrawlLog(job="showtimes", chain=result.chain, status="failed", source=result.source, items=0,
@@ -82,6 +110,7 @@ class CrawlerManager:
         self.last_finished_at: datetime | None = None
         self.next_run_at: datetime | None = None
         self.last_results: list[dict] = []
+        self.remote: dict[str, dict] = {}
         self._lock = asyncio.Lock()
         self._wake = asyncio.Event()
 
@@ -94,6 +123,9 @@ class CrawlerManager:
             "interval_minutes": self.interval_minutes,
             "seat_monitor_interval_seconds": settings.seat_monitor_interval_seconds,
             "chains": CHAINS,
+            "remote_chains": settings.rpa_remote_chains,
+            "remote": self.remote,
+            "proxy": bool(settings.rpa_proxy_url),
             "last_started_at": self.last_started_at,
             "last_finished_at": self.last_finished_at,
             "next_run_at": self.next_run_at,
@@ -116,24 +148,50 @@ class CrawlerManager:
             try:
                 for chain in chains or CHAINS:
                     for day in (date.today(), date.today() + timedelta(days=1)):
-                        r = await asyncio.to_thread(
-                            crawl_chain, chain, day, settings.rpa_mode, settings.rpa_timeout_seconds, settings.rpa_headless
-                        )
-                        try:
-                            saved = await asyncio.to_thread(persist, r, trigger)
-                        except Exception as e:  # noqa: BLE001 - 한 체인 실패가 전체 작업을 중단시키지 않도록
-                            log.exception("persist failed: %s %s", chain, day)
-                            r.ok, r.message, saved = False, f"DB 저장 실패: {type(e).__name__}: {e}"[:500], 0
-                            await asyncio.to_thread(log_failure, r, trigger)
-                        results.append({"chain": chain, "date": day.isoformat(), "ok": r.ok, "source": r.source,
-                                        "items": saved, "duration_ms": r.duration_ms, "message": r.message})
-                        log.info("crawl %s %s ok=%s source=%s items=%s", chain, day, r.ok, r.source, saved)
+                        results.append(await self._crawl_one(chain, day, trigger))
             finally:
                 self.running = False
                 self.last_finished_at = datetime.now()
                 self.last_results = results
             await manager.broadcast({"type": "crawl_finished", "trigger": trigger, "results": results})
             return results
+
+    async def _crawl_one(self, chain: str, day: date, trigger: str) -> dict:
+        fresh = await asyncio.to_thread(has_fresh_real, chain, day)
+        if chain in settings.rpa_remote_chains:
+            # 데이터센터 IP 차단 체인: 국내 원격 수집기(rpa.runner --push)가 보낸 실데이터 사용
+            if fresh:
+                return {"chain": chain, "date": day.isoformat(), "ok": True, "source": "remote", "items": 0,
+                        "duration_ms": 0, "message": "원격 수집기 실데이터 사용 중"}
+            r = await asyncio.to_thread(crawl_chain, chain, day, "mock")
+            r.ok, r.message = False, f"원격 수집기 데이터 없음(TTL {settings.rpa_real_ttl_minutes}분) → 모의 데이터 {len(r.items)}건"
+        else:
+            r = await asyncio.to_thread(crawl_chain, chain, day, settings.rpa_mode, settings.rpa_timeout_seconds,
+                                        settings.rpa_headless, settings.rpa_proxy_url)
+            if r.source == "mock" and r.error and fresh:
+                r.items, r.message = [], f"실제 수집 실패 → 기존 실데이터 유지 ({r.error})"[:500]
+                await asyncio.to_thread(log_failure, r, trigger)
+                return {"chain": chain, "date": day.isoformat(), "ok": False, "source": "real", "items": 0,
+                        "duration_ms": r.duration_ms, "message": r.message}
+        try:
+            saved = await asyncio.to_thread(persist, r, trigger)
+        except Exception as e:  # noqa: BLE001 - 한 체인 실패가 전체 작업을 중단시키지 않도록
+            log.exception("persist failed: %s %s", chain, day)
+            r.ok, r.message, saved = False, f"DB 저장 실패: {type(e).__name__}: {e}"[:500], 0
+            await asyncio.to_thread(log_failure, r, trigger)
+        log.info("crawl %s %s ok=%s source=%s items=%s", chain, day, r.ok, r.source, saved)
+        return {"chain": chain, "date": day.isoformat(), "ok": r.ok, "source": r.source, "items": saved,
+                "duration_ms": r.duration_ms, "message": r.message}
+
+    async def ingest(self, result: CrawlResult, collector: str) -> int:
+        """원격 수집기(국내 PC 등)가 push 한 실데이터 저장"""
+        saved = await asyncio.to_thread(persist, result, "remote")
+        self.remote[result.chain] = {"at": datetime.now(), "date": result.day.isoformat() if result.day else None,
+                                     "items": saved, "collector": collector}
+        await manager.broadcast({"type": "crawl_finished", "trigger": "remote", "results": [
+            {"chain": result.chain, "date": self.remote[result.chain]["date"], "ok": True, "source": "real",
+             "items": saved, "duration_ms": result.duration_ms, "message": result.message}]})
+        return saved
 
     async def loop(self) -> None:
         self.next_run_at = datetime.now()

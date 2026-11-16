@@ -1,5 +1,5 @@
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
+from datetime import date, datetime
 
 
 @dataclass
@@ -34,3 +34,5 @@ class CrawlResult:
     ok: bool
     duration_ms: int
     message: str = ""
+    day: date | None = None
+    error: str = ""

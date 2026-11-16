@@ -112,3 +112,55 @@ def test_persist_dedupes_duplicate_items():
     unique = len(r.items)
     r.items = r.items + r.items[:3]
     assert persist(r, "test") == unique
+
+
+def _count(chain, day, source):
+    from sqlalchemy import func, select
+    from backend.app.services.crawler import day_window
+    start, end = day_window(day)
+    with SessionLocal() as db:
+        return db.scalar(select(func.count()).select_from(Showtime).where(
+            Showtime.chain == chain, Showtime.source == source, Showtime.start_at >= start, Showtime.start_at < end))
+
+
+def test_remote_ingest_replaces_mock(client, monkeypatch):
+    from backend.app.routers import rpa as rpa_router
+    day = date.today() + timedelta(days=3)
+    persist(crawl_chain("cgv", day, "mock"), "test")
+    assert _count("cgv", day, "mock") > 0
+
+    item = {"external_id": "0056-x-1", "theater": "CGV 강남", "screen": "1관", "movie_title": "원격 수집 테스트",
+            "start_at": f"{day.isoformat()}T20:00:00", "total_seats": 120, "available_seats": 30}
+    body = {"chain": "cgv", "date": day.isoformat(), "items": [item], "collector": "pytest"}
+    assert client.post("/api/rpa/ingest", json=body).status_code == 404  # 토큰 미설정 → 비활성
+
+    monkeypatch.setattr(rpa_router, "settings", replace(rpa_router.settings, rpa_ingest_token="secret-token"))
+    assert client.post("/api/rpa/ingest", json=body, headers={"X-RPA-Token": "wrong"}).status_code == 401
+    res = client.post("/api/rpa/ingest", json=body, headers={"X-RPA-Token": "secret-token"})
+    assert res.status_code == 200 and res.json()["saved"] == 1
+    assert _count("cgv", day, "real") == 1 and _count("cgv", day, "mock") == 0
+
+
+def test_crawler_keeps_fresh_real_data(monkeypatch):
+    import asyncio
+    from backend.app.services import crawler as crawler_mod
+    day = date.today() + timedelta(days=4)
+    real = crawl_chain("lotte", day, "mock")
+    real.source, real.day = "real", day
+    persist(real, "test")
+    n_real = _count("lotte", day, "real")
+
+    def failing(chain, d, *a, **kw):  # 실제 수집 실패 → 모의 데이터 폴백 상황 재현
+        r = crawl_chain(chain, d, "mock")
+        r.error, r.ok = "CrawlError: HTTP 403", False
+        return r
+    monkeypatch.setattr(crawler_mod, "crawl_chain", failing)
+    out = asyncio.run(crawler_mod.crawler._crawl_one("lotte", day, "test"))
+    assert out["ok"] is False and "기존 실데이터 유지" in out["message"]
+    assert _count("lotte", day, "real") == n_real and _count("lotte", day, "mock") == 0
+
+    monkeypatch.setattr(crawler_mod, "settings", replace(crawler_mod.settings, rpa_remote_chains=["lotte"]))
+    assert asyncio.run(crawler_mod.crawler._crawl_one("lotte", day, "test"))["source"] == "remote"
+    other = day + timedelta(days=1)  # 원격 데이터가 없는 날짜 → 모의 데이터로 대체
+    out = asyncio.run(crawler_mod.crawler._crawl_one("lotte", other, "test"))
+    assert out["source"] == "mock" and out["ok"] is False and _count("lotte", other, "mock") > 0

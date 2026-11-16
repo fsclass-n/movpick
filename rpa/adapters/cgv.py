@@ -27,7 +27,8 @@ class CgvAdapter(BaseAdapter):
         de = day.strftime("%Y%m%d")
         try:
             with sync_playwright() as p:
-                browser = p.chromium.launch(headless=self.headless, args=["--no-sandbox", "--disable-dev-shm-usage"])
+                browser = p.chromium.launch(headless=self.headless, proxy=self.playwright_proxy,
+                                            args=["--no-sandbox", "--disable-dev-shm-usage"])
                 page = browser.new_page(user_agent=USER_AGENT, locale="ko-KR")
                 page.goto(BOOKING_PAGE, timeout=self.timeout * 1000, wait_until="domcontentloaded")
                 responses = page.evaluate(FETCH_JS, [SCHEDULE_API.format(site=s, de=de) for s in SITES])

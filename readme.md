@@ -74,6 +74,24 @@ docker compose up --build
   크롤링 사이 구간의 취소표/신규 예매는 `SEAT_SIMULATION=true` 일 때 시뮬레이션되며, 다음 크롤링에서 실제 잔여석 수로 보정됩니다.
 - 명당 자리: 스크린 기준 약 62% 깊이 · 중앙 열에 가까울수록 높은 점수(NumPy), 상위 18% 좌석을 명당으로 표시합니다.
 
+### CGV 원격 수집기 (데이터센터 IP 차단 대응)
+
+CGV는 해외 데이터센터 IP(Render)에서의 요청을 **HTTP 403**으로 차단합니다. 국내 PC에서 수집해 백엔드로 전송하는 방식으로 해결합니다.
+
+1. 토큰 생성 후 **Render 대시보드**와 **수집기 PC의 `.env`** 에 같은 값으로 `RPA_INGEST_TOKEN` 등록
+   (`python -c "import secrets;print(secrets.token_urlsafe(32))"`)
+2. Render 백엔드에 `RPA_REMOTE_CHAINS=cgv` 등록 → 서버는 CGV를 직접 수집하지 않고 원격 데이터를 사용
+3. 수집기 PC에서 실행 / 작업 스케줄러 등록(30분 주기)
+
+```powershell
+.venv\Scripts\python -m rpa.runner --chain cgv --mode real --days 2 --push https://movpick-api.onrender.com
+schtasks /Create /SC MINUTE /MO 30 /TN "movpick-cgv-collector" /TR "powershell -NoProfile -ExecutionPolicy Bypass -File D:\git605\movpick\scripts\cgv-collector.ps1"
+```
+
+- 원격 데이터가 `RPA_REAL_TTL_MINUTES`(기본 180분) 동안 갱신되지 않으면 서버가 모의 데이터로 대체합니다(관리자 로그에 표시).
+- 수집 실패 시에도 TTL 이내의 실데이터가 있으면 모의 데이터로 덮어쓰지 않습니다(모든 체인 공통).
+- 대안: `RPA_PROXY_URL` 에 국내 프록시를 지정하면 서버에서 직접 수집합니다.
+
 ## 배포
 
 - **Render**: `render.yaml` Blueprint로 `movpick-api`(루트 `Dockerfile`, Playwright+Chromium 빌드 타임 설치)와 `movpick`(Static) 두 서비스를 독립 생성합니다.

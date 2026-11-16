@@ -197,7 +197,7 @@ async def oauth_callback(provider: Provider, request: Request, code: str | None 
     except jwt.PyJWTError:
         raise HTTPException(400, "유효하지 않은 OAuth state 입니다.")
     if error or not code:
-        return RedirectResponse(f"{origin}/oauth/callback#error={error or 'cancelled'}")
+        return RedirectResponse(f"{origin}/#oauth_error={error or 'cancelled'}")
 
     pid, name, email = await _fetch_profile(provider, code, state, _redirect_uri(provider, request))
     user = db.scalar(select(User).where(User.provider == provider, User.provider_id == pid))
@@ -210,4 +210,5 @@ async def oauth_callback(provider: Provider, request: Request, code: str | None 
     elif not user.provider_id:
         user.provider, user.provider_id = provider, pid
     token = _token_response(db, user).access_token
-    return RedirectResponse(f"{origin}/oauth/callback#token={token}")
+    # 루트(/)로 복귀: SPA 리라이트 규칙이 없는 정적 호스팅(Render Static 등)에서도 항상 index.html 이 응답됨
+    return RedirectResponse(f"{origin}/#oauth_token={token}")

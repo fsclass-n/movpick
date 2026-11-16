@@ -24,7 +24,7 @@ function SeatPill({ st }) {
       <p className={`mt-1 text-[11px] font-medium ${tone}`}>
         <FontAwesomeIcon icon={faCouch} className="mr-1" />{st.available_seats}/{st.total_seats}
       </p>
-      <p className="mt-0.5 max-w-24 truncate text-[10px] text-muted">{st.screen}</p>
+      <p className="mt-0.5 max-w-24 truncate text-[10px] text-muted">{st.source !== 'real' && <span className="mr-1 font-semibold text-gold/80">DEMO</span>}{st.screen}</p>
     </Link>
   )
 }
@@ -112,7 +112,8 @@ export default function Home() {
       })
     return [...map.values()]
       .map((m) => ({ ...m, chains: [...m.chains], rate: 1 - m.avail / Math.max(1, m.total) }))
-      .sort((a, b) => b.showtimes.length * (0.5 + b.rate) - a.showtimes.length * (0.5 + a.rate))
+      .map((m) => ({ ...m, real: m.showtimes.some((s) => s.source === 'real') }))
+      .sort((a, b) => (b.real - a.real) || b.showtimes.length * (0.5 + b.rate) - a.showtimes.length * (0.5 + a.rate))
   }, [shows, q])
 
   const live = shows?.filter((s) => s.source === 'real').length ?? 0
@@ -124,7 +125,7 @@ export default function Home() {
         <p className="text-xs font-semibold uppercase tracking-[0.35em] text-accent"><FontAwesomeIcon icon={faBolt} className="mr-1.5" />RPA SYNCED SHOWTIMES</p>
         <h1 className="title-ko mt-2 text-3xl sm:text-4xl">지금 예매 가능한 상영작</h1>
         <p className="mt-2 text-sm text-muted">
-          {shows ? <>총 {shows.length}회차 · 실시간 수집 {live}회차 · 마지막 동기화 {fmtDateTime(lastSync)}</> : '상영 시간표를 불러오는 중…'}
+          {shows ? <>총 {shows.length}회차 · 실시간 수집 {live}회차{shows.length > live && <> · 데모 {shows.length - live}회차</>} · 마지막 동기화 {fmtDateTime(lastSync)}</> : '상영 시간표를 불러오는 중…'}
         </p>
       </section>
 

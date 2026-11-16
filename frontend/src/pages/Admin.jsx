@@ -110,6 +110,9 @@ function CrawlerTab() {
             <dt className="text-muted">다음 실행</dt><dd>{status.enabled ? fmtDateTime(status.next_run_at) : '-'}</dd>
             <dt className="text-muted">좌석 모니터</dt><dd>{status.seat_monitor_interval_seconds}초 주기</dd>
             <dt className="text-muted">국내 프록시</dt><dd>{status.proxy ? '사용' : '미사용'}</dd>
+            {status.mock_chains?.length > 0 && (
+              <><dt className="text-muted">데모 데이터</dt><dd className="text-gold">{status.mock_chains.map((c) => CHAINS[c]?.label || c).join(', ')}</dd></>
+            )}
             {status.remote_chains?.length > 0 && (
               <>
                 <dt className="text-muted">원격 수집기</dt>

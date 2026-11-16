@@ -71,6 +71,7 @@ class Settings:
     rpa_proxy_url: str = _str("RPA_PROXY_URL")
     rpa_ingest_token: str = _str("RPA_INGEST_TOKEN")
     rpa_remote_chains: list[str] = field(default_factory=lambda: [c.lower() for c in _list("RPA_REMOTE_CHAINS", "")])
+    rpa_mock_chains: list[str] = field(default_factory=lambda: [c.lower() for c in _list("RPA_MOCK_CHAINS", "")])
     rpa_real_ttl_minutes: int = _int("RPA_REAL_TTL_MINUTES", 180)
 
     telegram_bot_token: str = _str("TELEGRAM_BOT_TOKEN")

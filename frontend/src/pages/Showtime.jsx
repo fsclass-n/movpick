@@ -88,7 +88,7 @@ export default function Showtime() {
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: `${CHAINS[st.chain]?.color}26`, color: CHAINS[st.chain]?.color }}>{CHAINS[st.chain]?.label}</span>
-            <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${st.source === 'real' ? 'bg-mint/15 text-mint' : 'bg-surface-2 text-muted'}`}>{st.source === 'real' ? 'RPA LIVE' : 'MOCK'}</span>
+            <span title={st.source === 'real' ? '영화관에서 실시간 수집된 상영 정보' : '실제 상영 정보가 아닌 데모 데이터'} className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${st.source === 'real' ? 'bg-mint/15 text-mint' : 'bg-gold-soft text-gold'}`}>{st.source === 'real' ? 'RPA LIVE' : 'DEMO'}</span>
           </div>
           <h1 className="title-ko mt-2 text-2xl sm:text-3xl">{st.movie_title}</h1>
           <p className="mt-1 text-sm text-muted"><FontAwesomeIcon icon={faLocationDot} className="mr-1.5 text-accent" />{st.theater} · {st.screen}</p>
@@ -105,6 +105,11 @@ export default function Showtime() {
             </button>
           </div>
           <SeatMap data={data} selected={selected} onToggle={toggle} heatmap={heatmap} flash={flash} />
+          {st.source !== 'real' && (
+            <p className="mt-5 text-center text-[11px] text-gold/90">
+              <FontAwesomeIcon icon={faCircleInfo} className="mr-1" />데모 데이터입니다. 실제 영화관의 상영 시간표·잔여석이 아니며, 서비스 시연용으로 생성된 값입니다.
+            </p>
+          )}
           {data.estimated && (
             <p className="mt-5 text-center text-[11px] text-muted/80">
               <FontAwesomeIcon icon={faCircleInfo} className="mr-1" />잔여석 수는 영화관에서 실시간 수집된 값이며, 좌석 단위 배치는 잔여석 수를 기반으로 추정한 값입니다.

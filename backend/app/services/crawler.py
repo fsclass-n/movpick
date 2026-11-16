@@ -22,8 +22,11 @@ def persist(result: CrawlResult, trigger: str) -> int:
     """수집 결과를 showtimes 테이블에 upsert 하고 crawl_logs 기록."""
     result.items = list({i.external_id: i for i in result.items}.values())
     with SessionLocal() as db:
-        if result.source == "real" and result.day and result.items:
-            _purge_mock(db, result.chain, result.day)
+        if result.day and result.items:
+            if result.source == "real":
+                _purge(db, result.chain, result.day, "mock")
+            elif result.chain in settings.rpa_mock_chains:  # 데모 모드 체인: 남아 있는 실데이터와 섞이지 않도록 정리
+                _purge(db, result.chain, result.day, "real")
         existing = {
             s.external_id: s
             for s in db.scalars(select(Showtime).where(
@@ -65,14 +68,12 @@ def day_window(day: date) -> tuple[datetime, datetime]:
     return start, start + timedelta(days=1, hours=6)
 
 
-def _purge_mock(db, chain: str, day: date) -> None:
-    """실데이터가 들어오면 같은 체인·일자의 모의 데이터를 제거해 혼재를 방지."""
+def _purge(db, chain: str, day: date, source: str) -> None:
+    """같은 체인·일자에서 다른 출처(source)의 회차를 제거해 실데이터/모의 데이터 혼재를 방지."""
     start, end = day_window(day)
-    ids = select(Showtime.id).where(Showtime.chain == chain, Showtime.source == "mock",
-                                    Showtime.start_at >= start, Showtime.start_at < end)
-    db.execute(delete(SeatWatch).where(SeatWatch.showtime_id.in_(ids)))
-    db.execute(delete(Showtime).where(Showtime.chain == chain, Showtime.source == "mock",
-                                      Showtime.start_at >= start, Showtime.start_at < end))
+    cond = (Showtime.chain == chain, Showtime.source == source, Showtime.start_at >= start, Showtime.start_at < end)
+    db.execute(delete(SeatWatch).where(SeatWatch.showtime_id.in_(select(Showtime.id).where(*cond))))
+    db.execute(delete(Showtime).where(*cond))
 
 
 def real_state(chain: str, day: date) -> tuple[bool, bool]:
@@ -121,7 +122,8 @@ class CrawlerManager:
             "interval_minutes": self.interval_minutes,
             "seat_monitor_interval_seconds": settings.seat_monitor_interval_seconds,
             "chains": CHAINS,
-            "remote_chains": settings.rpa_remote_chains,
+            "remote_chains": [c for c in settings.rpa_remote_chains if c not in settings.rpa_mock_chains],
+            "mock_chains": settings.rpa_mock_chains,
             "remote": self.remote,
             "proxy": bool(settings.rpa_proxy_url),
             "last_started_at": self.last_started_at,
@@ -155,6 +157,13 @@ class CrawlerManager:
             return results
 
     async def _crawl_one(self, chain: str, day: date, trigger: str) -> dict:
+        if chain in settings.rpa_mock_chains:
+            # 데모 모드: 실제 수집 없이 모의 데이터만 사용 (원격 수집 설정보다 우선)
+            r = await asyncio.to_thread(crawl_chain, chain, day, "mock")
+            r.message = f"데모 데이터 모드 → 모의 데이터 {len(r.items)}건"
+            saved = await asyncio.to_thread(persist, r, trigger)
+            return {"chain": chain, "date": day.isoformat(), "ok": True, "source": "demo", "items": saved,
+                    "duration_ms": r.duration_ms, "message": r.message}
         has_real, fresh = await asyncio.to_thread(real_state, chain, day)
         stale = "" if fresh else f" · 갱신 지연(TTL {settings.rpa_real_ttl_minutes}분 초과)"
         if chain in settings.rpa_remote_chains:

@@ -43,7 +43,7 @@ services:
         value: "true"
       - key: CRAWL_INTERVAL_MINUTES
         value: "30"
-      - key: RPA_REMOTE_CHAINS
+      - key: RPA_MOCK_CHAINS
         value: cgv
       - key: RPA_INGEST_TOKEN
         sync: false

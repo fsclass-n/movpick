@@ -80,6 +80,9 @@ docker compose up --build
 
 ### CGV 원격 수집기 (국외 IP 차단 대응)
 
+> **현재 운영: CGV는 데모 데이터** (`RPA_MOCK_CHAINS=cgv`). 화면에 `DEMO` 로 표시되며 인기 순위에서는 제외됩니다.
+> 국내 수집 환경이 준비되면 `RPA_MOCK_CHAINS` 를 비우고 아래 방식 중 하나로 전환하세요.
+
 CGV 스케줄 API는 Cloudflare WAF가 **국외 IP를 403으로 차단**합니다(진단 결과: 국내 `ray=ICN` 허용, Render·GitHub 호스티드 러너 `ray=PDX` 차단 — 브라우저 헤더/Playwright 모두 동일).
 따라서 CGV는 **국내 IP**에서 수집해 백엔드로 전송합니다. 메가박스·롯데시네마는 Render에서 직접 수집됩니다.
 관리자 화면의 **수집 진단** 버튼으로 현재 서버에서의 접속 가능 여부를 언제든 확인할 수 있습니다.

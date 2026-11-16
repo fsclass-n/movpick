@@ -39,7 +39,10 @@ class MockAdapter(BaseAdapter):
                 for n in range(5):
                     end = start + timedelta(minutes=runtime + 10)
                     hours_left = (start - datetime.now()).total_seconds() / 3600
-                    sold_ratio = min(0.97, max(0.05, 0.85 - hours_left * 0.04 + rng.uniform(-0.15, 0.15)))
+                    # 실제 멀티플렉스와 비슷한 분포: 평균 10~40%, 저녁·임박 회차일수록 높음
+                    prime_time = 0.15 if 18 <= start.hour <= 22 else 0.0
+                    soon = max(0.0, 0.25 - max(hours_left, 0) * 0.02)
+                    sold_ratio = min(0.7, max(0.02, 0.08 + prime_time + soon + rng.uniform(-0.05, 0.1)))
                     items.append(ShowtimeData(
                         chain=self.chain,
                         external_id=f"mock-{theater}-{screen}-{start:%Y%m%d%H%M}",

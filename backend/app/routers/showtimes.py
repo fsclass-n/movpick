@@ -141,9 +141,10 @@ def booking_rates(db: Session = Depends(get_db)):
         g["rate"] = (g.sold / g.total.clip(lower=1)).round(3)
         return [{"name": CHAIN_LABELS.get(k, k), "rate": float(v)} for k, v in g.rate.sort_values(ascending=False).items()]
 
+    ranked = df[df.source == "real"] if (df.source == "real").any() else df  # 인기 순위는 실데이터 우선 (데모 데이터 제외)
     return {
-        "movies": rate(df, "title")[:5],
-        "top": _popular(df),
+        "movies": rate(ranked, "title")[:5],
+        "top": _popular(ranked),
         "chains": rate(df, "chain"),
         "totals": {"showtimes": int(len(df)), "seats": int(df.total.sum()), "available": int(df.available.sum())},
         "live_ratio": round(float((df.source == "real").mean()), 3),

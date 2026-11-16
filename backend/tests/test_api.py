@@ -203,3 +203,25 @@ def test_crawler_keeps_fresh_real_data(monkeypatch):
     other = day + timedelta(days=1)  # 원격 데이터가 없는 날짜 → 모의 데이터로 대체
     out = asyncio.run(crawler_mod.crawler._crawl_one("lotte", other, "test"))
     assert out["source"] == "mock" and out["ok"] is False and _count("lotte", other, "mock") > 0
+
+
+def test_mock_chain_replaces_real_and_rejects_ingest(client, monkeypatch):
+    import asyncio
+    from backend.app.routers import rpa as rpa_router
+    from backend.app.services import crawler as crawler_mod
+    day = date.today() + timedelta(days=6)
+    real = crawl_chain("cgv", day, "mock")
+    real.source, real.day = "real", day
+    persist(real, "test")
+    assert _count("cgv", day, "real") > 0
+
+    monkeypatch.setattr(crawler_mod, "settings", replace(crawler_mod.settings, rpa_mock_chains=["cgv"], rpa_remote_chains=["cgv"]))
+    out = asyncio.run(crawler_mod.crawler._crawl_one("cgv", day, "test"))
+    assert out["source"] == "demo" and out["ok"] is True
+    assert _count("cgv", day, "real") == 0 and _count("cgv", day, "mock") > 0
+
+    monkeypatch.setattr(rpa_router, "settings", replace(rpa_router.settings, rpa_ingest_token="t", rpa_mock_chains=["cgv"]))
+    item = {"external_id": "x", "theater": "CGV", "screen": "1", "movie_title": "m",
+            "start_at": f"{day.isoformat()}T20:00:00", "total_seats": 10, "available_seats": 5}
+    res = client.post("/api/rpa/ingest", json={"chain": "cgv", "date": day.isoformat(), "items": [item]}, headers={"X-RPA-Token": "t"})
+    assert res.status_code == 409

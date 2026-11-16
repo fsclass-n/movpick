@@ -58,6 +58,8 @@ def ping(x_rpa_token: str | None = Header(None)):
 @router.post("/ingest")
 async def ingest(body: IngestIn, x_rpa_token: str | None = Header(None)):
     _check_token(x_rpa_token)
+    if body.chain in settings.rpa_mock_chains:
+        raise HTTPException(409, f"{body.chain} 은(는) 데모 데이터 모드(RPA_MOCK_CHAINS)라 실데이터를 받지 않습니다.")
     items = [ShowtimeData(chain=body.chain, source="real", **i.model_dump()) for i in body.items]
     result = CrawlResult(body.chain, items, "real", True, body.duration_ms,
                          f"원격 수집기({body.collector}) {len(items)}건 수신", body.date)

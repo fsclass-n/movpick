@@ -144,7 +144,7 @@ function Header() {
   return (
     <>
     <header className={`sticky top-0 z-50 border-b transition-colors ${scrolled || open ? 'border-line bg-ink/85 backdrop-blur-xl' : 'border-transparent bg-transparent'}`}>
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-5 sm:px-8 lg:px-10">
         <Logo />
         <nav className="hidden items-center gap-1 md:flex" aria-label="주요 메뉴">
           {NAV.map((n) => (
@@ -171,7 +171,7 @@ function Header() {
                   <FontAwesomeIcon icon={faRightFromBracket} />
                 </button>
               </>
-            ) : (
+            ) : pathname !== '/login' && (
               <Link to="/login" className="btn-primary py-2">
                 <FontAwesomeIcon icon={faRightToBracket} /> 로그인
               </Link>
@@ -186,7 +186,78 @@ function Header() {
   )
 }
 
+const FOOTER_LINKS = [
+  {
+    title: '서비스',
+    links: [
+      { label: '상영작 · 시간표', to: '/' },
+      { label: '명당 자리 알림', to: '/alerts' },
+      { label: '로그인 · 회원가입', to: '/login' },
+    ],
+  },
+  {
+    title: '제휴 영화관',
+    links: [
+      { label: 'CGV', href: 'https://cgv.co.kr' },
+      { label: '메가박스', href: 'https://www.megabox.co.kr' },
+      { label: '롯데시네마', href: 'https://www.lottecinema.co.kr' },
+    ],
+  },
+  {
+    title: '프로젝트',
+    links: [
+      { label: '프로젝트 안내', href: 'https://fsclass-n.github.io/movpick/' },
+      { label: 'API 문서', href: 'https://movpick-api.onrender.com/docs' },
+      { label: 'GitHub', href: 'https://github.com/fsclass-n/movpick' },
+    ],
+  },
+]
+
 function Footer() {
+  const linkCls = 'text-sm text-muted transition hover:text-fg'
+  return (
+    <footer className="mt-24 border-t border-line bg-ink/60">
+      <div className="mx-auto grid max-w-7xl grid-cols-3 gap-x-6 gap-y-10 px-5 py-12 sm:px-8 md:grid-cols-[1.4fr_repeat(3,1fr)] lg:px-10">
+        <div className="col-span-3 max-w-sm md:col-span-1">
+          <Logo />
+          <p className="mt-4 text-sm leading-relaxed text-muted">
+            멀티플렉스 상영 시간표와 잔여석을 RPA로 자동 동기화하고, 명당 자리에 취소표가 생기는 순간 실시간으로 알려드립니다.
+          </p>
+          <div className="mt-5 flex gap-2">
+            <a href="https://github.com/fsclass-n/movpick" target="_blank" rel="noreferrer" aria-label="GitHub"
+              className="grid size-9 place-items-center rounded-full border border-line text-muted transition hover:border-fg/40 hover:text-fg">
+              <FontAwesomeIcon icon={faGithub} />
+            </a>
+          </div>
+        </div>
+        {FOOTER_LINKS.map((col) => (
+          <nav key={col.title} aria-label={col.title}>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-fg/80">{col.title}</p>
+            <ul className="mt-4 space-y-2.5">
+              {col.links.map((l) => (
+                <li key={l.label}>
+                  {l.to ? <Link to={l.to} className={linkCls}>{l.label}</Link>
+                    : <a href={l.href} target="_blank" rel="noreferrer" className={linkCls}>{l.label}</a>}
+                </li>
+              ))}
+            </ul>
+          </nav>
+        ))}
+      </div>
+      <div className="border-t border-line">
+        <div className="mx-auto flex max-w-7xl flex-col gap-3 px-5 py-6 text-xs text-muted/80 sm:px-8 md:flex-row md:items-center md:justify-between lg:px-10">
+          <div className="space-y-1">
+            <p>팀 movpick <span className="mx-1.5 text-line">|</span> 조장 박미금 <span className="mx-1.5 text-line">|</span> 팀원 김모란 · 이오리 · 홍기흥</p>
+            <p>상영 정보와 잔여석은 각 영화관의 공개 데이터를 RPA로 수집한 값으로, 실제 예매 화면과 차이가 있을 수 있습니다.</p>
+          </div>
+          <p className="shrink-0">© {new Date().getFullYear()} movpick. All rights reserved.</p>
+        </div>
+      </div>
+    </footer>
+  )
+}
+
+function ToTop() {
   const [show, setShow] = useState(false)
   useEffect(() => {
     const onScroll = () => setShow(window.scrollY > 400)
@@ -194,43 +265,26 @@ function Footer() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
   return (
-    <footer className="mt-20 border-t border-line">
-      <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-10 sm:px-6 md:flex-row md:items-center md:justify-between">
-        <div>
-          <Logo />
-          <p className="mt-3 max-w-md text-sm text-muted">
-            RPA 기반 영화 상영 시간표 자동 동기화 · 명당 자리 실시간 예매 추천 플랫폼
-          </p>
-          <p className="mt-1 text-xs text-muted/70">Team movpick · 박미금 · 김모란 · 이오리 · 홍기흥</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <a href="https://github.com/fsclass-n/movpick" target="_blank" rel="noreferrer" className="btn-ghost">
-            <FontAwesomeIcon icon={faGithub} /> GitHub
-          </a>
-          <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="btn-ghost">
-            <FontAwesomeIcon icon={faArrowUp} /> To the Top
-          </button>
-        </div>
-      </div>
-      <button
-        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-        aria-label="맨 위로"
-        className={`fixed bottom-5 right-5 z-40 grid size-12 place-items-center rounded-full bg-accent text-white shadow-xl shadow-accent/30 transition-all duration-300 hover:brightness-110 ${show ? 'translate-y-0 opacity-100' : 'pointer-events-none translate-y-4 opacity-0'}`}
-      >
-        <FontAwesomeIcon icon={faArrowUp} />
-      </button>
-    </footer>
+    <button
+      onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+      aria-label="맨 위로"
+      className={`fixed bottom-5 right-5 z-40 grid size-12 place-items-center rounded-full bg-accent text-white shadow-xl shadow-accent/30 transition-all duration-300 hover:-translate-y-0.5 hover:brightness-110 sm:bottom-8 sm:right-8 ${show ? 'translate-y-0 opacity-100' : 'pointer-events-none translate-y-4 opacity-0'}`}
+    >
+      <FontAwesomeIcon icon={faArrowUp} />
+    </button>
   )
 }
 
-export default function Layout() {
+/** bare: 전체 폭(full-bleed) 페이지용 — 헤더/푸터는 동일하게 유지하고 본문 컨테이너만 제거 */
+export default function Layout({ bare = false }) {
   return (
     <div className="cinema-bg flex min-h-dvh flex-col">
       <Header />
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 pt-6 sm:px-6">
+      <main className={bare ? 'flex w-full flex-1 flex-col' : 'mx-auto w-full max-w-7xl flex-1 px-5 pt-6 sm:px-8 lg:px-10'}>
         <Outlet />
       </main>
       <Footer />
+      <ToTop />
       <AlertPopup />
     </div>
   )

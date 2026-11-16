@@ -89,17 +89,22 @@ CGV 스케줄 API는 Cloudflare WAF가 **국외 IP를 403으로 차단**합니�
 
 | 방식 | PC 의존 | 설정 |
 | --- | --- | --- |
-| **국내 클라우드 VM + Docker** (권장: Oracle Cloud Free Tier 서울/춘천, AWS 서울 등) | 없음 | 저장소 clone → `.env` 작성 → `docker compose --profile collector up -d cgv-collector` (30분 상주 수집) |
+| **국내 클라우드 VM + Docker** (권장: Oracle Cloud Free Tier 서울/춘천, AWS 서울 등) | 없음 | VM에서 `RPA_INGEST_TOKEN='...' bash setup.sh` 한 번 실행 (아래) → 30분 상주 수집, 재부팅 시 자동 시작 |
 | 국내 VM + GitHub self-hosted runner | 없음 | 러너 등록(라벨 예: `kr`) → repo variable `CGV_RUNNER=kr`, secret `RPA_INGEST_TOKEN` → `CGV Collector` 워크플로가 30분마다 실행 |
 | 국내 프록시 | 없음 | Render에 `RPA_PROXY_URL=http://user:pass@host:port` 등록, `RPA_REMOTE_CHAINS` 제거 → 서버가 직접 수집 |
 | 국내 PC 작업 스케줄러 (임시) | 있음 | `scripts\cgv-collector.ps1` 를 30분 주기로 등록 |
 
 ```bash
+# 국내 VM 원클릭 설치: CGV 접근·토큰 사전 점검 → Docker 설치 → 경량 수집기 컨테이너 기동
+curl -fsSL https://raw.githubusercontent.com/fsclass-n/movpick/main/scripts/setup-collector-vm.sh -o setup.sh
+RPA_INGEST_TOKEN='<Render 와 같은 값>' bash setup.sh
+
 # 수동 실행 / 상주 실행
 python -m rpa.runner --chain cgv --mode real --days 2 --push https://movpick-api.onrender.com
 python -m rpa.runner --chain cgv --mode real --days 2 --push https://movpick-api.onrender.com --every 30
 ```
 
+- `movpick-api.onrender.com`(Render)은 **수신 서버**로만 사용합니다. Render에는 국내 리전이 없어 수집기 자체는 Render에서 실행할 수 없습니다.
 - 해당 일자의 실데이터가 있으면 수집이 실패해도 모의 데이터와 섞지 않고 유지합니다(모든 체인 공통). `RPA_REAL_TTL_MINUTES`(기본 180분)를 넘기면 관리자 화면에 '갱신 지연'으로 표시됩니다.
 - 실데이터가 전혀 없는 일자만 모의 데이터로 대체합니다.
 

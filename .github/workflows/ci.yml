@@ -50,6 +50,10 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build backend image (Playwright + Chromium)
         run: docker build -t movpick-api:ci .
+      - name: Build lightweight CGV collector image (no Chromium)
+        run: |
+          docker build --build-arg INSTALL_BROWSER=false -t movpick-collector:ci .
+          docker run --rm movpick-collector:ci python -m rpa.runner --help > /dev/null
       - name: Smoke test container
         run: |
           docker run -d --name api -p 8000:8000 -e RPA_MODE=mock -e SECRET_KEY=ci movpick-api:ci

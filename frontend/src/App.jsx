@@ -40,9 +40,11 @@ function NotFound() {
 export default function App() {
   return (
     <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route path="/oauth/callback" element={<OAuthCallback />} />
+      <Route element={<Layout bare />}>
+        <Route path="/login" element={<Login />} />
+      </Route>
       <Route element={<Layout />}>
+        <Route path="/oauth/callback" element={<OAuthCallback />} />
         <Route index element={<Home />} />
         <Route path="/showtimes/:id" element={<Showtime />} />
         <Route path="/alerts" element={<RequireAuth><Alerts /></RequireAuth>} />

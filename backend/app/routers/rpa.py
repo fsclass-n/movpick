@@ -41,12 +41,23 @@ class IngestIn(BaseModel):
     collector: str = Field("remote", max_length=50)
 
 
-@router.post("/ingest")
-async def ingest(body: IngestIn, x_rpa_token: str | None = Header(None)):
+def _check_token(token: str | None) -> None:
     if not settings.rpa_ingest_token:
         raise HTTPException(404, "원격 수집 수신이 비활성화되어 있습니다. (RPA_INGEST_TOKEN 미설정)")
-    if not x_rpa_token or not secrets.compare_digest(x_rpa_token, settings.rpa_ingest_token):
+    if not token or not secrets.compare_digest(token, settings.rpa_ingest_token):
         raise HTTPException(401, "유효하지 않은 수집기 토큰입니다.")
+
+
+@router.get("/ping")
+def ping(x_rpa_token: str | None = Header(None)):
+    """수집기 설치 시 토큰 확인용 (데이터 변경 없음)"""
+    _check_token(x_rpa_token)
+    return {"ok": True}
+
+
+@router.post("/ingest")
+async def ingest(body: IngestIn, x_rpa_token: str | None = Header(None)):
+    _check_token(x_rpa_token)
     items = [ShowtimeData(chain=body.chain, source="real", **i.model_dump()) for i in body.items]
     result = CrawlResult(body.chain, items, "real", True, body.duration_ms,
                          f"원격 수집기({body.collector}) {len(items)}건 수신", body.date)

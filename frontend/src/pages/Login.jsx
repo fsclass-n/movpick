@@ -1,12 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
-  faArrowLeft, faArrowRight, faCheck, faCircleNotch, faComment, faCouch, faCrown, faEnvelope, faEye, faEyeSlash, faFilm,
-  faLock, faTicket, faUser, faUserShield, faXmark,
+  faArrowRight, faCheck, faCircleNotch, faComment, faCouch, faCrown, faEnvelope, faEye, faEyeSlash, faLock, faUser,
+  faUserShield, faXmark,
 } from '@fortawesome/free-solid-svg-icons'
-import { faGithub, faGoogle } from '@fortawesome/free-brands-svg-icons'
-import { Logo } from '../components/Layout'
+import { faGoogle } from '@fortawesome/free-brands-svg-icons'
 import Poster from '../components/Poster'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
@@ -37,80 +36,81 @@ function useBookingStats() {
 
 function Metric({ label, value, tone = 'text-fg' }) {
   return (
-    <div className="min-w-0">
-      <p className="truncate text-[11px] tracking-wide text-fg/60">{label}</p>
-      <p className={`title-cine text-2xl leading-tight sm:text-3xl ${tone}`}>{value}</p>
+    <div className="min-w-0 px-4 first:pl-0 last:pr-0">
+      <dt className="truncate text-[11px] tracking-wide text-fg/60">{label}</dt>
+      <dd className={`title-cine text-2xl leading-tight sm:text-3xl ${tone}`}>{value}</dd>
     </div>
   )
 }
 
-/** 좌측: 오늘 인기 1위 영화 포스터 히어로 */
+// 헤더(max-w-7xl) 컨테이너 가장자리와 정렬되는 좌우 여백
+const EDGE_L = 'px-5 sm:px-8 lg:pl-[max(2.5rem,calc((100vw-80rem)/2+2.5rem))] lg:pr-12'
+const EDGE_R = 'px-5 sm:px-8 lg:pr-[max(2.5rem,calc((100vw-80rem)/2+2.5rem))] lg:pl-14'
+
+/** 좌측: 오늘 인기 1위 영화 포스터 히어로 (풀블리드) */
 function NowPlayingHero() {
   const stats = useBookingStats()
   const [top, ...rest] = stats?.top || []
   const loading = !stats
 
   return (
-    <section className="relative isolate flex min-h-[260px] overflow-hidden rounded-3xl border border-line bg-surface lg:min-h-0">
+    <section className="relative isolate overflow-hidden lg:min-h-[calc(100dvh-4rem)]">
       {top?.poster_url && (
-        <img src={top.poster_url} alt="" aria-hidden className="absolute inset-0 -z-10 size-full scale-110 object-cover opacity-50 blur-2xl" />
+        <img src={top.poster_url} alt="" aria-hidden className="absolute inset-0 -z-20 size-full scale-110 object-cover opacity-60 blur-md" />
       )}
-      <div className="absolute inset-0 -z-10 bg-gradient-to-t from-ink via-ink/80 to-ink/30" />
-      <div className="absolute inset-0 -z-10 bg-[radial-gradient(600px_300px_at_0%_0%,#ff3d5733,transparent_70%)]" />
+      <div className="absolute inset-0 -z-10 bg-gradient-to-t from-ink via-ink/75 to-ink/20" />
+      <div className="absolute inset-0 -z-10 hidden bg-gradient-to-r from-ink/60 via-transparent to-ink lg:block" />
+      <div className="absolute inset-0 -z-10 bg-[radial-gradient(700px_380px_at_10%_0%,#ff3d5740,transparent_70%)]" />
 
-      <div className="flex w-full flex-col p-5 sm:p-8 lg:p-10">
-        <div className="flex items-center justify-between">
-          <span className="inline-flex items-center gap-2 rounded-full border border-gold/40 bg-gold-soft px-3 py-1 text-[11px] font-bold tracking-[0.2em] text-gold">
-            <FontAwesomeIcon icon={faCrown} /> TODAY&apos;S NO.1
-          </span>
-          <span className="flex items-center gap-1.5 text-[11px] font-semibold text-mint">
-            <span className="size-1.5 animate-pulse rounded-full bg-mint" /> RPA LIVE
-          </span>
+      <div className={`flex h-full flex-col py-8 lg:py-14 ${EDGE_L}`}>
+        <div className="flex items-center gap-4 text-[11px] font-bold tracking-[0.25em]">
+          <span className="flex items-center gap-2 text-gold"><FontAwesomeIcon icon={faCrown} /> TODAY&apos;S NO.1</span>
+          <span className="h-px flex-1 bg-gradient-to-r from-gold/50 to-transparent" />
+          <span className="flex items-center gap-1.5 text-mint"><span className="size-1.5 animate-pulse rounded-full bg-mint" /> RPA LIVE</span>
         </div>
 
-        <div className="mt-5 flex flex-1 items-center gap-5 sm:gap-8 lg:mt-8">
-          <div className="relative shrink-0">
-            <div className="absolute -inset-3 -z-10 rounded-3xl bg-accent/25 blur-2xl" />
+        <div className="mt-6 flex flex-1 items-center gap-2 sm:gap-6 lg:mt-10">
+          <div className="relative flex shrink-0 items-end">
+            <span aria-hidden className="title-cine text-stroke -mr-6 select-none text-[9rem] leading-[0.75] sm:-mr-10 sm:text-[14rem] lg:text-[17rem] xl:text-[20rem]">1</span>
             {loading ? (
-              <div className="aspect-[2/3] w-28 animate-pulse rounded-2xl bg-surface-2 sm:w-44 lg:w-56 xl:w-64" />
+              <div className="relative aspect-[2/3] w-24 animate-pulse bg-surface-2 sm:w-40 lg:w-52 xl:w-60" />
             ) : (
               <Poster url={top?.poster_url} title={top?.title || 'movpick'} eager
-                className="aspect-[2/3] w-28 rounded-2xl shadow-2xl shadow-black/60 ring-1 ring-white/10 sm:w-44 lg:w-56 xl:w-64" />
+                className="relative aspect-[2/3] w-24 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.9)] sm:w-40 lg:w-52 xl:w-60" />
             )}
-            <span className="title-cine absolute -bottom-3 -left-3 grid size-12 place-items-center rounded-2xl bg-accent text-3xl text-white shadow-lg shadow-accent/40 sm:size-14 sm:text-4xl">1</span>
           </div>
 
-          <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-accent">Box Office · 실시간 판매 좌석 기준</p>
+          <div className="min-w-0 flex-1 pl-4 sm:pl-2">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-accent sm:text-[11px]">Box Office · 판매 좌석 기준</p>
             {loading ? (
-              <div className="mt-3 h-9 w-3/4 animate-pulse rounded-lg bg-surface-2" />
+              <div className="mt-3 h-9 w-3/4 animate-pulse bg-surface-2" />
             ) : (
-              <h2 className="title-ko mt-2 line-clamp-3 text-2xl leading-tight sm:text-3xl xl:text-4xl">{top?.title || '상영 시간표 동기화 중'}</h2>
+              <h2 className="title-ko mt-2 line-clamp-3 text-2xl leading-tight sm:text-4xl xl:text-5xl">{top?.title || '상영 시간표 동기화 중'}</h2>
             )}
             {top && (
-              <div className="mt-3 flex flex-wrap items-center gap-1.5">
+              <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-fg/70">
                 {top.rating && <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${ratingTone(top.rating)}`}>{shortRating(top.rating)}</span>}
-                {top.chains.map((c) => <span key={c} className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-medium text-fg/80">{c}</span>)}
-              </div>
+                {top.chains.join(' · ')}
+              </p>
             )}
-            <div className="mt-5 hidden grid-cols-3 gap-4 border-t border-white/10 pt-4 sm:grid">
-              <Metric label="오늘 판매 좌석" value={top ? top.sold.toLocaleString() : '-'} tone="text-gold" />
+            <dl className="mt-6 hidden max-w-md grid-cols-3 divide-x divide-white/10 sm:grid">
+              <Metric label="판매 좌석" value={top ? top.sold.toLocaleString() : '-'} tone="text-gold" />
               <Metric label="예매율" value={top ? pct(top.rate) : '-'} />
               <Metric label="상영 회차" value={top ? top.showtimes : '-'} />
-            </div>
+            </dl>
             <p className="mt-3 text-xs text-fg/60 sm:hidden">{top ? `판매 ${top.sold.toLocaleString()}석 · 예매율 ${pct(top.rate)} · ${top.showtimes}회차` : ''}</p>
           </div>
         </div>
 
         {rest.length > 0 && (
-          <ol className="mt-8 hidden grid-cols-2 gap-2 lg:grid xl:grid-cols-4">
+          <ol className="mt-10 hidden grid-cols-4 border-t border-white/10 lg:grid">
             {rest.map((m, i) => (
-              <li key={m.title} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-ink/50 p-2.5 backdrop-blur">
-                <Poster url={m.poster_url} title={m.title} className="aspect-[2/3] w-9 shrink-0 rounded-md" />
+              <li key={m.title} className="flex items-center gap-3 border-white/10 py-4 pr-3 [&:not(:first-child)]:border-l [&:not(:first-child)]:pl-4">
+                <span className="title-cine text-3xl text-fg/30">{i + 2}</span>
+                <Poster url={m.poster_url} title={m.title} className="aspect-[2/3] w-8 shrink-0" />
                 <div className="min-w-0">
-                  <p className="text-[10px] font-bold text-muted">NO.{i + 2}</p>
                   <p className="truncate text-xs font-semibold">{m.title}</p>
-                  <p className="text-[10px] text-gold">{pct(m.rate)}</p>
+                  <p className="text-[11px] text-gold">{pct(m.rate)}</p>
                 </div>
               </li>
             ))}
@@ -122,10 +122,10 @@ function NowPlayingHero() {
             명당 자리가 비는 순간,<br /><span className="text-gold">가장 먼저</span> 알려드려요
           </h1>
           {stats?.totals && (
-            <div className="flex shrink-0 gap-6 text-right">
+            <dl className="flex shrink-0 divide-x divide-white/10 text-right">
               <Metric label="오늘 회차" value={stats.totals.showtimes.toLocaleString()} />
               <Metric label="잔여석" value={stats.totals.available.toLocaleString()} tone="text-mint" />
-            </div>
+            </dl>
           )}
         </div>
       </div>
@@ -138,24 +138,6 @@ const SOCIAL = [
   { id: 'naver', label: '네이버', cls: 'bg-[#03C75A] text-white hover:brightness-105', icon: <span className="font-black">N</span> },
   { id: 'kakao', label: '카카오', cls: 'bg-[#FEE500] text-[#191600] hover:brightness-95', icon: <FontAwesomeIcon icon={faComment} /> }, // FA 무료 세트에 카카오 로고가 없어 말풍선 사용
 ]
-
-function AuthFooter() {
-  return (
-    <footer className="mx-auto mt-8 w-full max-w-7xl border-t border-line pt-6">
-      <div className="flex flex-col gap-4 text-xs text-muted sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-col gap-1">
-          <p className="flex items-center gap-2 text-fg/80"><FontAwesomeIcon icon={faTicket} className="text-accent" /> RPA 기반 상영 시간표 동기화 · 명당 자리 실시간 예매 추천</p>
-          <p>© {new Date().getFullYear()} Team movpick · 박미금 · 김모란 · 이오리 · 홍기흥</p>
-        </div>
-        <nav className="flex flex-wrap items-center gap-x-5 gap-y-2" aria-label="바닥글">
-          <Link to="/" className="hover:text-fg"><FontAwesomeIcon icon={faFilm} className="mr-1.5" />상영작</Link>
-          <a href="https://fsclass-n.github.io/movpick/" target="_blank" rel="noreferrer" className="hover:text-fg">프로젝트 안내</a>
-          <a href="https://github.com/fsclass-n/movpick" target="_blank" rel="noreferrer" className="hover:text-fg"><FontAwesomeIcon icon={faGithub} className="mr-1.5" />GitHub</a>
-        </nav>
-      </div>
-    </footer>
-  )
-}
 
 export default function Login() {
   const { login, signup, demoLogin, user } = useAuth()
@@ -228,19 +210,12 @@ export default function Login() {
   }
 
   return (
-    <div className="cinema-bg flex min-h-dvh flex-col px-4 pb-6 pt-4 sm:px-6 lg:px-10 lg:pt-6">
-      <header className="mx-auto flex w-full max-w-7xl items-center justify-between py-2">
-        <Logo />
-        <Link to="/" className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-muted transition hover:bg-surface-2 hover:text-fg">
-          <FontAwesomeIcon icon={faArrowLeft} /> <span className="hidden sm:inline">상영작 둘러보기</span><span className="sm:hidden">둘러보기</span>
-        </Link>
-      </header>
+    <div className="grid flex-1 lg:grid-cols-[1.12fr_1fr]">
+      <NowPlayingHero />
 
-      <main className="mx-auto mt-4 grid w-full max-w-7xl flex-1 gap-5 lg:mt-6 lg:grid-cols-[1.15fr_1fr] lg:gap-8">
-        <NowPlayingHero />
-
-        <section className="card flex items-center justify-center rounded-3xl px-5 py-8 sm:px-10 sm:py-10 lg:px-12">
-          <div className="w-full max-w-md animate-fade-up">
+      <section className={`relative flex items-center py-10 lg:py-14 ${EDGE_R}`}>
+        <div aria-hidden className="absolute inset-y-14 left-0 hidden w-px bg-gradient-to-b from-transparent via-line to-transparent lg:block" />
+          <div className="mx-auto w-full max-w-md animate-fade-up">
             <div key={mode} className="animate-fade-up">
               <p className="text-[11px] font-bold tracking-[0.35em] text-accent">{copy.eyebrow}</p>
               <h1 className="title-ko mt-2 text-3xl leading-tight sm:text-4xl">{copy.title}</h1>
@@ -320,10 +295,7 @@ export default function Login() {
               {isSignup ? '비밀번호: 영문 대·소문자 · 숫자 · 특수문자 조합 8자 이상' : <>계정이 없으신가요? <button onClick={() => switchMode('signup')} className="font-semibold text-fg hover:text-accent">회원가입</button></>}
             </p>
           </div>
-        </section>
-      </main>
-
-      <AuthFooter />
+      </section>
     </div>
   )
 }

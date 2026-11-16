@@ -54,6 +54,7 @@
 @utility chip { @apply inline-flex items-center gap-1.5 rounded-full border border-line px-3 py-1.5 text-xs font-medium transition; }
 @utility title-cine { @apply font-display tracking-wide; }
 @utility title-ko { font-family: var(--font-title-ko); }
+@utility text-stroke { color: transparent; -webkit-text-stroke: 2px rgb(236 235 245 / 0.28); }
 
 .cinema-bg {
   background:

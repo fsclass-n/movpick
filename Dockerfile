@@ -17,8 +17,10 @@ RUN apt-get update \
 
 COPY requirements.txt .
 # 빌드 타임에 Chromium 바이너리 + 시스템 종속 패키지 설치 (Render 런타임에서는 설치 불가)
+# INSTALL_BROWSER=false: 국내 수집기 전용 경량 이미지 (국내 IP 에서는 HTTP 방식으로 수집되어 브라우저 불필요)
+ARG INSTALL_BROWSER=true
 RUN pip install -r requirements.txt \
-    && python -m playwright install --with-deps chromium \
+    && if [ "$INSTALL_BROWSER" = "true" ]; then python -m playwright install --with-deps chromium; fi \
     && rm -rf /var/lib/apt/lists/*
 
 COPY backend ./backend

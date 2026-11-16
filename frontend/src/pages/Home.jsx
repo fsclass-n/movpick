@@ -128,7 +128,7 @@ export default function Home() {
         </p>
       </section>
 
-      <section className="sticky top-16 z-20 -mx-4 mt-6 border-b border-line bg-ink/85 px-4 py-3 backdrop-blur-xl sm:mx-0 sm:rounded-2xl sm:border sm:px-4">
+      <section className="sticky top-16 z-20 -mx-5 mt-6 border-b border-line bg-ink/85 px-5 py-3 backdrop-blur-xl sm:mx-0 sm:rounded-2xl sm:border sm:px-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
           <div className="flex gap-2">
             {DAYS.map((d) => (

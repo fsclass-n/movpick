@@ -169,6 +169,8 @@ def test_remote_ingest_replaces_mock(client, monkeypatch):
 
     monkeypatch.setattr(rpa_router, "settings", replace(rpa_router.settings, rpa_ingest_token="secret-token"))
     assert client.post("/api/rpa/ingest", json=body, headers={"X-RPA-Token": "wrong"}).status_code == 401
+    assert client.get("/api/rpa/ping", headers={"X-RPA-Token": "wrong"}).status_code == 401
+    assert client.get("/api/rpa/ping", headers={"X-RPA-Token": "secret-token"}).json() == {"ok": True}
     res = client.post("/api/rpa/ingest", json=body, headers={"X-RPA-Token": "secret-token"})
     assert res.status_code == 200 and res.json()["saved"] == 1
     assert _count("cgv", day, "real") == 1 and _count("cgv", day, "mock") == 0

@@ -76,7 +76,7 @@ docker compose up --build
 
 ## 배포
 
-- **Render**: `render.yaml` Blueprint로 `movpick-api`(Docker, Playwright+Chromium 빌드 타임 설치)와 `movpick`(Static) 두 서비스를 독립 생성합니다.
+- **Render**: `render.yaml` Blueprint로 `movpick-api`(루트 `Dockerfile`, Playwright+Chromium 빌드 타임 설치)와 `movpick`(Static) 두 서비스를 독립 생성합니다.
   `sync: false` 항목(TiDB·OAuth·웹훅 키)은 Render 대시보드에서 직접 입력하세요.
 - **Netlify**: `netlify.toml` (base=`frontend`, SPA 리다이렉트 포함).
 - **OAuth 콜백 URL**: `{BACKEND_URL}/api/auth/oauth/{google|naver|kakao}/callback` 을 각 개발자 콘솔에 등록하세요.

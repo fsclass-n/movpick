@@ -1,4 +1,5 @@
-# Build context: repository root  (docker build -f backend/Dockerfile .)
+# Backend API 이미지 (Render 기본 경로 ./Dockerfile, build context: repository root)
+#   docker build -t movpick-api .
 # Playwright 1.52 --with-deps 는 Debian 12(bookworm)까지 지원 (3.11-slim 은 trixie 로 변경됨)
 FROM python:3.11-slim-bookworm
 

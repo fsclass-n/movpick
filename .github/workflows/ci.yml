@@ -49,7 +49,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build backend image (Playwright + Chromium)
-        run: docker build -f backend/Dockerfile -t movpick-api:ci .
+        run: docker build -t movpick-api:ci .
       - name: Smoke test container
         run: |
           docker run -d --name api -p 8000:8000 -e RPA_MODE=mock -e SECRET_KEY=ci movpick-api:ci

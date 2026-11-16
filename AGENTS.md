@@ -5,7 +5,7 @@
 - Node is installed at `C:\Program Files\nodejs` but may be missing from Git Bash PATH:
   `export PATH="/c/Program Files/nodejs:$PATH"`
 - Set `PYTHONIOENCODING=utf-8` when printing Korean output to the console.
-- Docker is not installed locally; Docker builds are verified in GitHub Actions (`docker` job in ci.yml).
+- Backend Dockerfile lives at repo root (`./Dockerfile`, Render default path). Docker is not installed locally; Docker builds are verified in GitHub Actions (`docker` job in ci.yml).
 
 ## Commands
 - Backend dev: `.venv/Scripts/python -m uvicorn backend.app.main:app --reload --port 8000` (run from repo root)

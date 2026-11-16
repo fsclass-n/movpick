@@ -88,8 +88,8 @@ CGV는 해외 데이터센터 IP(Render)에서의 요청을 **HTTP 403**으로 �
 schtasks /Create /SC MINUTE /MO 30 /TN "movpick-cgv-collector" /TR "powershell -NoProfile -ExecutionPolicy Bypass -File D:\git605\movpick\scripts\cgv-collector.ps1"
 ```
 
-- 원격 데이터가 `RPA_REAL_TTL_MINUTES`(기본 180분) 동안 갱신되지 않으면 서버가 모의 데이터로 대체합니다(관리자 로그에 표시).
-- 수집 실패 시에도 TTL 이내의 실데이터가 있으면 모의 데이터로 덮어쓰지 않습니다(모든 체인 공통).
+- 해당 일자의 실데이터가 있으면 수집이 실패해도 모의 데이터와 섞지 않고 유지합니다(모든 체인 공통). `RPA_REAL_TTL_MINUTES`(기본 180분)를 넘기면 관리자 화면에 '갱신 지연'으로 표시됩니다.
+- 실데이터가 전혀 없는 일자만 모의 데이터로 대체합니다.
 - 대안: `RPA_PROXY_URL` 에 국내 프록시를 지정하면 서버에서 직접 수집합니다.
 
 ## 배포

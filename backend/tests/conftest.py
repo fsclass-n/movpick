@@ -8,6 +8,10 @@ os.environ.update({
     "RPA_ENABLED": "false",
     "DEMO_LOGIN_ENABLED": "true",
     "SECRET_KEY": "test-secret",
+    # 개발자 로컬 .env 값이 테스트에 섞이지 않도록 고정
+    "RPA_INGEST_TOKEN": "",
+    "RPA_REMOTE_CHAINS": "",
+    "RPA_PROXY_URL": "",
 })
 
 import pytest  # noqa: E402

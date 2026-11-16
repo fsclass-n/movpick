@@ -159,6 +159,10 @@ def test_crawler_keeps_fresh_real_data(monkeypatch):
     assert out["ok"] is False and "기존 실데이터 유지" in out["message"]
     assert _count("lotte", day, "real") == n_real and _count("lotte", day, "mock") == 0
 
+    monkeypatch.setattr(crawler_mod, "settings", replace(crawler_mod.settings, rpa_real_ttl_minutes=0))
+    out = asyncio.run(crawler_mod.crawler._crawl_one("lotte", day, "test"))  # TTL 초과(stale)여도 섞지 않음
+    assert "갱신 지연" in out["message"] and _count("lotte", day, "mock") == 0
+
     monkeypatch.setattr(crawler_mod, "settings", replace(crawler_mod.settings, rpa_remote_chains=["lotte"]))
     assert asyncio.run(crawler_mod.crawler._crawl_one("lotte", day, "test"))["source"] == "remote"
     other = day + timedelta(days=1)  # 원격 데이터가 없는 날짜 → 모의 데이터로 대체

@@ -4,7 +4,7 @@ import asyncio
 import logging
 from datetime import date, datetime, timedelta
 
-from sqlalchemy import delete, exists, select
+from sqlalchemy import delete, func, select
 
 from rpa import seatmap
 from rpa.models import CrawlResult
@@ -75,15 +75,13 @@ def _purge_mock(db, chain: str, day: date) -> None:
                                       Showtime.start_at >= start, Showtime.start_at < end))
 
 
-def has_fresh_real(chain: str, day: date) -> bool:
-    """TTL 이내에 갱신된 실데이터가 있으면 True (수집 실패 시 모의 데이터로 덮어쓰지 않음)."""
+def real_state(chain: str, day: date) -> tuple[bool, bool]:
+    """(실데이터 존재, TTL 이내 갱신). 실데이터가 있으면 수집 실패 시에도 모의 데이터를 섞지 않는다."""
     start, end = day_window(day)
-    since = datetime.now() - timedelta(minutes=settings.rpa_real_ttl_minutes)
     with SessionLocal() as db:
-        return bool(db.scalar(select(exists().where(
-            Showtime.chain == chain, Showtime.source == "real", Showtime.start_at >= start,
-            Showtime.start_at < end, Showtime.updated_at >= since,
-        ))))
+        last = db.scalar(select(func.max(Showtime.updated_at)).where(
+            Showtime.chain == chain, Showtime.source == "real", Showtime.start_at >= start, Showtime.start_at < end))
+    return last is not None, bool(last and last >= datetime.now() - timedelta(minutes=settings.rpa_real_ttl_minutes))
 
 
 def log_failure(result: CrawlResult, trigger: str) -> None:
@@ -157,19 +155,20 @@ class CrawlerManager:
             return results
 
     async def _crawl_one(self, chain: str, day: date, trigger: str) -> dict:
-        fresh = await asyncio.to_thread(has_fresh_real, chain, day)
+        has_real, fresh = await asyncio.to_thread(real_state, chain, day)
+        stale = "" if fresh else f" · 갱신 지연(TTL {settings.rpa_real_ttl_minutes}분 초과)"
         if chain in settings.rpa_remote_chains:
             # 데이터센터 IP 차단 체인: 국내 원격 수집기(rpa.runner --push)가 보낸 실데이터 사용
-            if fresh:
-                return {"chain": chain, "date": day.isoformat(), "ok": True, "source": "remote", "items": 0,
-                        "duration_ms": 0, "message": "원격 수집기 실데이터 사용 중"}
+            if has_real:
+                return {"chain": chain, "date": day.isoformat(), "ok": fresh, "source": "remote", "items": 0,
+                        "duration_ms": 0, "message": f"원격 수집기 실데이터 사용 중{stale}"}
             r = await asyncio.to_thread(crawl_chain, chain, day, "mock")
-            r.ok, r.message = False, f"원격 수집기 데이터 없음(TTL {settings.rpa_real_ttl_minutes}분) → 모의 데이터 {len(r.items)}건"
+            r.ok, r.message = False, f"원격 수집기 데이터 없음 → 모의 데이터 {len(r.items)}건"
         else:
             r = await asyncio.to_thread(crawl_chain, chain, day, settings.rpa_mode, settings.rpa_timeout_seconds,
                                         settings.rpa_headless, settings.rpa_proxy_url)
-            if r.source == "mock" and r.error and fresh:
-                r.items, r.message = [], f"실제 수집 실패 → 기존 실데이터 유지 ({r.error})"[:500]
+            if r.source == "mock" and r.error and has_real:
+                r.items, r.message = [], f"실제 수집 실패 → 기존 실데이터 유지{stale} ({r.error})"[:500]
                 await asyncio.to_thread(log_failure, r, trigger)
                 return {"chain": chain, "date": day.isoformat(), "ok": False, "source": "real", "items": 0,
                         "duration_ms": r.duration_ms, "message": r.message}

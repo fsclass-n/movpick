@@ -1,0 +1,11 @@
+.git
+.github
+.venv
+**/__pycache__
+**/.pytest_cache
+**/*.sqlite3
+.env
+.env.*
+frontend
+docs
+pages

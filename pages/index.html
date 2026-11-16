@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>movpick · 프로젝트 안내</title>
+  <meta name="description" content="RPA 기반 영화 상영 시간표 자동 동기화 및 명당 자리 실시간 예매 추천 플랫폼" />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Black+Han+Sans&display=swap" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" rel="stylesheet" />
+  <style>
+    :root { --ink:#07070c; --surface:#0f0f18; --line:#262638; --fg:#ecebf5; --muted:#9a98b0; --accent:#ff3d57; --gold:#f5c518; --mint:#34d399; }
+    * { box-sizing: border-box; }
+    body { margin:0; color:var(--fg); font-family:"Pretendard Variable",system-ui,sans-serif; word-break:keep-all; line-height:1.6;
+      background: radial-gradient(1000px 500px at 10% -10%, #ff3d5730, transparent 60%), radial-gradient(800px 500px at 110% 20%, #f5c51818, transparent 60%), var(--ink); }
+    a { color:inherit; }
+    .wrap { max-width:1080px; margin:0 auto; padding:48px 20px 80px; }
+    .logo { font-family:"Bebas Neue",sans-serif; font-size:32px; letter-spacing:1px; } .logo b { color:var(--accent); font-weight:400; }
+    .eyebrow { color:var(--accent); font-size:12px; font-weight:700; letter-spacing:.35em; margin-top:56px; }
+    h1 { font-family:"Black Han Sans",sans-serif; font-weight:400; font-size:clamp(30px,5vw,52px); line-height:1.2; margin:12px 0; }
+    h1 em { color:var(--gold); font-style:normal; }
+    h2 { font-family:"Black Han Sans",sans-serif; font-weight:400; font-size:24px; margin:56px 0 16px; }
+    p.lead { color:var(--muted); max-width:640px; }
+    .btns { display:flex; flex-wrap:wrap; gap:10px; margin-top:24px; }
+    .btn { display:inline-flex; align-items:center; gap:8px; padding:12px 18px; border-radius:12px; border:1px solid var(--line); background:var(--surface); text-decoration:none; font-weight:600; font-size:14px; }
+    .btn.primary { background:var(--accent); border-color:var(--accent); }
+    .grid { display:grid; gap:14px; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); }
+    .card { border:1px solid var(--line); background:#0f0f18cc; border-radius:18px; padding:20px; }
+    .card h3 { margin:0 0 6px; font-size:16px; } .card p { margin:0; color:var(--muted); font-size:14px; }
+    table { width:100%; border-collapse:collapse; font-size:14px; } td, th { text-align:left; padding:12px 14px; border-bottom:1px solid var(--line); }
+    th { color:var(--muted); font-weight:600; width:32%; }
+    .badge { display:inline-block; font-size:11px; padding:2px 8px; border-radius:999px; background:#34d39926; color:var(--mint); margin-left:6px; }
+    ol { padding-left:20px; color:var(--muted); } ol li { margin:6px 0; } ol b { color:var(--fg); }
+    footer { margin-top:64px; color:var(--muted); font-size:13px; border-top:1px solid var(--line); padding-top:20px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="logo">MOV<b>PICK</b></div>
+    <p class="eyebrow">RPA · REAL-TIME · PRIME SEAT</p>
+    <h1>명당 자리가 비는 순간,<br /><em>가장 먼저</em> 알려드려요</h1>
+    <p class="lead">CGV · 메가박스 · 롯데시네마의 상영 시간표와 잔여석을 Playwright 기반 RPA가 자동 수집·동기화하고,
+      사용자가 원하는 명당 자리에 취소표가 생기면 WebSocket과 웹훅(텔레그램·디스코드·이메일)으로 즉시 알림을 보내는 지능형 티켓팅 자동화 플랫폼입니다.</p>
+    <div class="btns">
+      <a class="btn primary" href="https://movpick.onrender.com">서비스 바로가기 (Production)</a>
+      <a class="btn" href="https://movpick.netlify.app">Staging (Netlify)</a>
+      <a class="btn" href="https://movpick-api.onrender.com/docs">API 문서 (Swagger)</a>
+      <a class="btn" href="https://github.com/fsclass-n/movpick">GitHub</a>
+    </div>
+
+    <h2>핵심 기능</h2>
+    <div class="grid">
+      <div class="card"><h3>RPA 상영 시간표 동기화</h3><p>Playwright Headless Chromium으로 WAF가 적용된 CGV까지 수집, 메가박스·롯데시네마는 JSON 엔드포인트 수집. 실패 시 모의 데이터 자동 폴백.</p></div>
+      <div class="card"><h3>명당 자리 자동 하이라이트</h3><p>스크린 대비 2/3 지점·중앙 열 기반 NumPy 점수 모델로 상위 18% 좌석을 명당으로 표시하고 히트맵 제공.</p></div>
+      <div class="card"><h3>실시간 잔여석 알림</h3><p>좌석 모니터가 취소표를 감지하면 WebSocket 팝업·토스트·브라우저 알림 및 텔레그램/디스코드/이메일 웹훅 송출.</p></div>
+      <div class="card"><h3>관리자 콘솔</h3><p>크롤링 주기·성공/실패 로그·Plotly 성능 리포트 모니터링, 회원 권한(일반 ⇄ 관리자) 실시간 변경.</p></div>
+    </div>
+
+    <h2>배포 환경</h2>
+    <div class="card" style="padding:0;overflow:hidden">
+      <table>
+        <tr><th>Frontend Production</th><td><a href="https://movpick.onrender.com">movpick.onrender.com</a> <span class="badge">Render Static</span></td></tr>
+        <tr><th>Frontend Staging</th><td><a href="https://movpick.netlify.app">movpick.netlify.app</a> <span class="badge">Netlify</span></td></tr>
+        <tr><th>Backend API</th><td><a href="https://movpick-api.onrender.com/health">movpick-api.onrender.com</a> <span class="badge">Render Docker</span></td></tr>
+        <tr><th>Database</th><td>TiDB Cloud · movpick</td></tr>
+      </table>
+    </div>
+
+    <h2>기술 스택</h2>
+    <div class="card" style="padding:0;overflow:hidden">
+      <table>
+        <tr><th>Frontend</th><td>React (Vite), Tailwind CSS v4, FontAwesome, 반응형 Flex/Grid</td></tr>
+        <tr><th>Backend</th><td>Python 3.11, FastAPI, WebSockets, SQLAlchemy, JWT, OAuth 2.0 (Google·Naver·Kakao)</td></tr>
+        <tr><th>RPA / Data</th><td>Playwright, BeautifulSoup4, Requests, NumPy, pandas, Plotly</td></tr>
+        <tr><th>Infra</th><td>Docker, Docker Compose, Render, Netlify, GitHub Actions, GitHub Pages</td></tr>
+      </table>
+    </div>
+
+    <h2>개발 단계</h2>
+    <ol>
+      <li><b>1단계</b> · React 시네마틱 UI/UX · 반응형 좌석 선택 컴포넌트 · Netlify/Render 멀티 플랫폼 배포</li>
+      <li><b>2단계</b> · FastAPI 백엔드 · Playwright RPA 파이프라인 · TiDB 연동 로컬 통합 테스트 · 알림 트리거 검증</li>
+      <li><b>3단계</b> · Playwright/Chromium 포함 Docker 이미지로 Render 배포 · CORS·WebSocket 프로덕션 검증</li>
+    </ol>
+
+    <footer>Team movpick · 박미금(조장) · 김모란 · 이오리 · 홍기흥</footer>
+  </div>
+</body>
+</html>

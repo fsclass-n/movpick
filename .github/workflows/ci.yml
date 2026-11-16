@@ -1,0 +1,73 @@
+name: CI / Deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: pytest
+        env:
+          RPA_ENABLED: "false"
+        run: python -m pytest -q
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run build
+        env:
+          VITE_API_URL: https://movpick-api.onrender.com
+
+  docker:
+    if: github.event_name == 'push'
+    needs: backend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build backend image (Playwright + Chromium)
+        run: docker build -f backend/Dockerfile -t movpick-api:ci .
+      - name: Smoke test container
+        run: |
+          docker run -d --name api -p 8000:8000 -e RPA_MODE=mock -e SECRET_KEY=ci movpick-api:ci
+          for i in $(seq 1 30); do curl -fs localhost:8000/health && exit 0; sleep 2; done
+          docker logs api; exit 1
+
+  deploy:
+    # Render/Netlify는 Git 연동 자동 배포. Deploy Hook 시크릿이 설정된 경우에만 수동 트리거
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [backend, frontend, docker]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render / Netlify deploy hooks
+        env:
+          RENDER_API_DEPLOY_HOOK: ${{ secrets.RENDER_API_DEPLOY_HOOK }}
+          RENDER_WEB_DEPLOY_HOOK: ${{ secrets.RENDER_WEB_DEPLOY_HOOK }}
+          NETLIFY_BUILD_HOOK: ${{ secrets.NETLIFY_BUILD_HOOK }}
+        run: |
+          for hook in "$RENDER_API_DEPLOY_HOOK" "$RENDER_WEB_DEPLOY_HOOK" "$NETLIFY_BUILD_HOOK"; do
+            [ -n "$hook" ] && curl -fsS -X POST "$hook" > /dev/null && echo "triggered" || echo "skip"
+          done

@@ -1,0 +1,75 @@
+# Render Blueprint - 프론트/백엔드 독립 서비스
+services:
+  # Backend API : https://movpick-api.onrender.com
+  - type: web
+    name: movpick-api
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: BACKEND_URL
+        value: https://movpick-api.onrender.com
+      - key: FRONTEND_URL
+        value: https://movpick.onrender.com
+      - key: FRONTEND_ORIGINS
+        value: https://movpick.onrender.com,https://movpick.netlify.app,https://fsclass-n.github.io,http://localhost:5173
+      - key: TIDB_HOST
+        sync: false
+      - key: TIDB_PORT
+        value: "4000"
+      - key: TIDB_USER
+        sync: false
+      - key: TIDB_PASSWORD
+        sync: false
+      - key: TIDB_DB_NAME
+        value: movpick
+      - key: RPA_MODE
+        value: auto
+      - key: RPA_HEADLESS
+        value: "true"
+      - key: CRAWL_INTERVAL_MINUTES
+        value: "30"
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: NAVER_CLIENT_ID
+        sync: false
+      - key: NAVER_CLIENT_SECRET
+        sync: false
+      - key: KAKAO_CLIENT_ID
+        sync: false
+      - key: KAKAO_CLIENT_SECRET
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
+      - key: DISCORD_WEBHOOK_URL
+        sync: false
+
+  # Frontend Production : https://movpick.onrender.com
+  - type: web
+    name: movpick
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    autoDeploy: true
+    envVars:
+      - key: VITE_API_URL
+        value: https://movpick-api.onrender.com
+      - key: NODE_VERSION
+        value: "22"
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

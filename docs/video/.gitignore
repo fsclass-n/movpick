@@ -1,3 +1,5 @@
 build/
-*.mp4
 *.webm
+*.mp4
+!movpick_final.mp4
+!movpick_highlight.mp4

@@ -25,4 +25,4 @@
 - Single source of truth for timing/narration: `docs/video/tools/video_scenes.py` (total must be exactly 600s).
 - Pipeline: `tts.py` → `export_slides.ps1` (PowerShell scripts need UTF-8 BOM for Korean paths) → `record_demo.py` → `compose.py --rebuild` → `check_final.py` → `gen_guide.py`.
 - Demo is recorded with CDP screencast frames (timestamped); Playwright's built-in video drifts vs wall clock and must not be used for cuts.
-- ffmpeg comes from winget (Gyan.FFmpeg); tools locate it automatically. Outputs `*.mp4` and `build/` are git-ignored (upload MP4 to a GitHub Release).
+- ffmpeg comes from winget (Gyan.FFmpeg); tools locate it automatically. `build/` is git-ignored; only `movpick_final.mp4` and `movpick_highlight.mp4` are committed (keep the final ≤95MB, GitHub hard limit is 100MB).

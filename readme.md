@@ -16,10 +16,10 @@ RPA 중심의 자동화 및 효율화
 
 ## 발표·시연 영상 (10분)
 
-[![movpick 10분 발표·시연](docs/video/video-thumbnail.png)](https://github.com/fsclass-n/movpick/releases/latest/download/movpick_final.mp4)
+[![movpick 10분 발표·시연](docs/video/video-thumbnail.png)](docs/video/movpick_final.mp4)
 
-- 본편 `movpick_final.mp4` (10:00 · 1920×1080 · 30fps · H.264 + AAC · 약 66MB) — GitHub Release 첨부 파일
-- 60초 하이라이트 `movpick_highlight.mp4` (좌석 맵 → 감시 등록 → 실시간 취소표 알림) · 자막 [`docs/video/movpick_final.srt`](docs/video/movpick_final.srt)
+- 본편 [`docs/video/movpick_final.mp4`](docs/video/movpick_final.mp4) (10:00 · 1920×1080 · 30fps · H.264 + AAC · 약 67MB, 파일 페이지에서 *View raw* 로 다운로드)
+- 60초 하이라이트 [`docs/video/movpick_highlight.mp4`](docs/video/movpick_highlight.mp4) (좌석 맵 → 감시 등록 → 실시간 취소표 알림) · 자막 [`docs/video/movpick_final.srt`](docs/video/movpick_final.srt)
 - 대본·연출 가이드: [`docs/video/영상_대본_및_연출가이드.md`](docs/video/영상_대본_및_연출가이드.md) · 제작 도구: `docs/video/tools/`
 - 시연은 운영 서비스(movpick.onrender.com)에서 **일반 회원 / 테스트 관리자(읽기 전용)** 두 테스트 계정을 비교합니다. 내레이션은 신경망 합성 음성입니다.
 

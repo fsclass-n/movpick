@@ -1,0 +1,42 @@
+name: CGV Collector
+
+# CGV(Cloudflare)는 Render 데이터센터 IP를 차단하므로, PC 와 무관하게 GitHub Actions 러너에서
+# 30분마다 수집해 백엔드 /api/rpa/ingest 로 전송한다. (repo secret: RPA_INGEST_TOKEN)
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [".github/workflows/cgv-collector.yml", "rpa/adapters/cgv.py", "rpa/runner.py"]
+
+concurrency:
+  group: cgv-collector
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONIOENCODING: utf-8
+      TZ: Asia/Seoul
+      MOVPICK_API_URL: ${{ vars.MOVPICK_API_URL || 'https://movpick-api.onrender.com' }}
+      RPA_INGEST_TOKEN: ${{ secrets.RPA_INGEST_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Install Chromium (Playwright fallback)
+        run: python -m playwright install --with-deps --only-shell chromium
+      - name: Collect CGV and push
+        run: |
+          if [ -n "$RPA_INGEST_TOKEN" ]; then
+            python -m rpa.runner --chain cgv --mode real --days 2 --push "$MOVPICK_API_URL"
+          else
+            echo "::warning::RPA_INGEST_TOKEN secret 미설정 → 수집 테스트만 실행 (전송 생략)"
+            python -m rpa.runner --chain cgv --mode real --days 2
+          fi

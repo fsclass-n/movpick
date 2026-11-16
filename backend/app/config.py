@@ -57,6 +57,9 @@ class Settings:
     kakao_client_secret: str = _str("KAKAO_CLIENT_SECRET")
 
     demo_login_enabled: bool = _bool("DEMO_LOGIN_ENABLED", True)
+    admin_email: str = _str("ADMIN_EMAIL")
+    admin_password: str = _str("ADMIN_PASSWORD")
+    admin_name: str = _str("ADMIN_NAME", "관리자")
 
     rpa_enabled: bool = _bool("RPA_ENABLED", True)
     rpa_mode: str = _str("RPA_MODE", "auto").lower()

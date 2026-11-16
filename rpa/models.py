@@ -36,3 +36,4 @@ class CrawlResult:
     message: str = ""
     day: date | None = None
     error: str = ""
+    via: str = ""

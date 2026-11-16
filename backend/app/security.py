@@ -69,3 +69,9 @@ def require_admin(user: User = Depends(get_current_user)) -> User:
     if user.role != "admin":
         raise HTTPException(status.HTTP_403_FORBIDDEN, "관리자 권한이 필요합니다.")
     return user
+
+
+def require_admin_write(user: User = Depends(require_admin)) -> User:
+    if user.read_only:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "테스트 관리자 계정은 읽기 전용입니다. 조회만 가능합니다.")
+    return user

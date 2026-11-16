@@ -1,3 +1,4 @@
+import logging
 import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Literal
@@ -10,18 +11,18 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from ..accounts import DEMO_ACCOUNTS, DEMO_EMAILS
 from ..config import settings
 from ..db import get_db
 from ..models import User
 from ..schemas import LoginIn, SignupIn, TokenOut, UserOut
-from ..security import ALGORITHM, create_access_token, get_current_user, hash_password, verify_password
+from ..security import (
+    ALGORITHM, create_access_token, get_current_user, hash_password, validate_password, verify_password,
+)
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
+log = logging.getLogger("movpick.auth")
 
-DEMO_ACCOUNTS = {
-    "user": {"email": "user@movpick.app", "password": "Movpick!2026", "name": "일반 회원(테스트)", "role": "user"},
-    "admin": {"email": "admin@movpick.app", "password": "Admin!2026", "name": "시스템 관리자(테스트)", "role": "admin"},
-}
 
 OAUTH = {
     "google": {
@@ -62,6 +63,29 @@ def ensure_demo_user(db: Session, kind: str) -> User:
         user.role = "admin"
     user.is_active = True
     db.commit()
+    return user
+
+
+def ensure_env_admin(db: Session) -> User | None:
+    """ADMIN_EMAIL / ADMIN_PASSWORD 로 지정한 실제 관리자 계정을 생성·동기화 (기동 시 호출)."""
+    email, password = settings.admin_email.lower(), settings.admin_password
+    if not email or not password:
+        return None
+    if email in DEMO_EMAILS:
+        log.error("ADMIN_EMAIL 에 테스트 계정은 사용할 수 없습니다: %s", email)
+        return None
+    if not validate_password(password):
+        log.error("ADMIN_PASSWORD 가 비밀번호 규칙을 만족하지 않아 관리자 계정을 생성하지 않았습니다.")
+        return None
+    user = db.scalar(select(User).where(User.email == email))
+    if not user:
+        user = User(email=email, name=settings.admin_name or "관리자")
+        db.add(user)
+    if not verify_password(password, user.password_hash):
+        user.password_hash = hash_password(password)
+    user.role, user.is_active = "admin", True
+    db.commit()
+    log.info("환경 변수 관리자 계정 동기화: %s", email)
     return user
 
 

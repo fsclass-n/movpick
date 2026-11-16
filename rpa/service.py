@@ -25,8 +25,10 @@ def crawl_chain(chain: str, day: date, mode: str = "auto", timeout: int = 20, he
     error = ""
     if mode in ("auto", "real"):
         try:
-            items = ADAPTERS[chain](timeout=timeout, headless=headless, proxy=proxy).fetch(day)
-            return CrawlResult(chain, items, "real", True, elapsed(), f"{len(items)}건 수집", day)
+            adapter = ADAPTERS[chain](timeout=timeout, headless=headless, proxy=proxy)
+            items = adapter.fetch(day)
+            via = getattr(adapter, "via", "http")
+            return CrawlResult(chain, items, "real", True, elapsed(), f"{len(items)}건 수집 ({via})", day, via=via)
         except Exception as e:  # noqa: BLE001 - 사이트 구조 변경/차단 등 모든 실패를 폴백 처리
             error = f"{type(e).__name__}: {e}"[:500]
             if mode == "real":

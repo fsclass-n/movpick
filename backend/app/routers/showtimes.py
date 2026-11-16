@@ -105,17 +105,35 @@ def seats(showtime_id: int, db: Session = Depends(get_db)):
     }
 
 
+POSTER_PRIORITY = {"lotte": 0, "cgv": 1, "megabox": 2}  # 고해상도 포스터 우선
+
+
+def _popular(df: pd.DataFrame, n: int = 5) -> list[dict]:
+    """인기 순위: 오늘 판매 좌석 수 합계 기준 (회차 수가 적은 영화의 예매율 왜곡 방지)"""
+    posters = (df.dropna(subset=["poster_url"]).assign(p=lambda d: d.chain.map(POSTER_PRIORITY))
+               .sort_values("p").groupby("title").poster_url.first())
+    g = df.groupby("title").agg(sold=("sold", "sum"), total=("total", "sum"), showtimes=("chain", "size"),
+                                rating=("rating", "first"), chains=("chain", lambda s: sorted(set(s))))
+    g["rate"] = (g.sold / g.total.clip(lower=1)).round(3)
+    g = g.sort_values(["sold", "rate"], ascending=False).head(n)
+    return [{"title": t, "poster_url": posters.get(t), "rating": r.rating, "sold": int(r.sold), "rate": float(r.rate),
+             "showtimes": int(r.showtimes), "chains": [CHAIN_LABELS.get(c, c) for c in r.chains]}
+            for t, r in g.iterrows()]
+
+
 @router.get("/stats/booking-rates")
 def booking_rates(db: Session = Depends(get_db)):
     """로그인 화면 실시간 예매율 비주얼용 통계"""
     start, end = _day_range(None)
     rows = db.execute(
-        select(Showtime.movie_title, Showtime.chain, Showtime.total_seats, Showtime.available_seats, Showtime.source)
+        select(Showtime.movie_title, Showtime.chain, Showtime.total_seats, Showtime.available_seats, Showtime.source,
+               Showtime.rating, Showtime.poster_url)
         .where(Showtime.start_at >= start, Showtime.start_at < end)
     ).all()
     if not rows:
-        return {"movies": [], "chains": [], "totals": {"showtimes": 0, "seats": 0, "available": 0}, "updated_at": None}
-    df = pd.DataFrame(rows, columns=["title", "chain", "total", "available", "source"])
+        return {"movies": [], "top": [], "chains": [], "totals": {"showtimes": 0, "seats": 0, "available": 0},
+                "updated_at": None}
+    df = pd.DataFrame(rows, columns=["title", "chain", "total", "available", "source", "rating", "poster_url"])
     df["sold"] = df.total - df.available
 
     def rate(frame: pd.DataFrame, key: str) -> list[dict]:
@@ -125,6 +143,7 @@ def booking_rates(db: Session = Depends(get_db)):
 
     return {
         "movies": rate(df, "title")[:5],
+        "top": _popular(df),
         "chains": rate(df, "chain"),
         "totals": {"showtimes": int(len(df)), "seats": int(df.total.sum()), "available": int(df.available.sum())},
         "live_ratio": round(float((df.source == "real").mean()), 3),

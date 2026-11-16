@@ -3,6 +3,7 @@ from datetime import datetime
 from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from .accounts import READ_ONLY_EMAILS
 from .db import Base
 
 
@@ -22,6 +23,11 @@ class User(Base):
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     watches: Mapped[list["SeatWatch"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+
+    @property
+    def read_only(self) -> bool:
+        """테스트 관리자: 관리자 화면 조회만 허용"""
+        return self.email in READ_ONLY_EMAILS
 
 
 class Showtime(Base):

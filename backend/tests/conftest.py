@@ -12,6 +12,9 @@ os.environ.update({
     "RPA_INGEST_TOKEN": "",
     "RPA_REMOTE_CHAINS": "",
     "RPA_PROXY_URL": "",
+    "ADMIN_EMAIL": "root@movpick.app",
+    "ADMIN_PASSWORD": "Root!Admin2026",
+    "ADMIN_NAME": "실제 관리자",
 })
 
 import pytest  # noqa: E402
@@ -27,5 +30,8 @@ def client():
 
 
 def auth(client, kind: str) -> dict:
-    token = client.post(f"/api/auth/demo/{kind}").json()["access_token"]
-    return {"Authorization": f"Bearer {token}"}
+    if kind == "root":  # .env(ADMIN_EMAIL/ADMIN_PASSWORD) 로 생성된 실제 관리자
+        res = client.post("/api/auth/login", json={"email": "root@movpick.app", "password": "Root!Admin2026"})
+    else:
+        res = client.post(f"/api/auth/demo/{kind}")
+    return {"Authorization": f"Bearer {res.json()['access_token']}"}

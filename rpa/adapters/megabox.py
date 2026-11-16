@@ -43,7 +43,7 @@ class MegaboxAdapter(BaseAdapter):
                         end_at=parse_hm(day, m["playEndTime"]) if m.get("playEndTime") else None,
                         total_seats=int(m.get("totSeatCnt") or 0),
                         available_seats=int(m.get("restSeatCnt") or 0),
-                        poster_url=f"https://www.megabox.co.kr{poster}" if poster else None,
+                        poster_url=f"https://www.megabox.co.kr{poster.replace('_150.', '_420.')}" if poster else None,
                         booking_url=f"https://www.megabox.co.kr/booking?brchNo={brch}&playDe={de}",
                     ))
         if not items:

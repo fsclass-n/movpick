@@ -11,7 +11,7 @@ from .config import settings
 from .db import Base, SessionLocal, engine
 from .models import Showtime
 from .routers import admin, auth, rpa, showtimes, watches
-from .routers.auth import ensure_demo_user
+from .routers.auth import ensure_demo_user, ensure_env_admin
 from .security import user_from_token
 from .services.crawler import crawler
 from .services.monitor import monitor_loop
@@ -23,8 +23,9 @@ log = logging.getLogger("movpick")
 
 def init_db() -> None:
     Base.metadata.create_all(engine)
-    if settings.demo_login_enabled:
-        with SessionLocal() as db:
+    with SessionLocal() as db:
+        ensure_env_admin(db)
+        if settings.demo_login_enabled:
             ensure_demo_user(db, "user")
             ensure_demo_user(db, "admin")
 

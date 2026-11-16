@@ -17,6 +17,7 @@ class UserOut(BaseModel):
     role: str
     provider: str
     is_active: bool
+    read_only: bool = False
     created_at: datetime | None = None
     last_login_at: datetime | None = None
 

@@ -11,7 +11,10 @@ from sqlalchemy.orm import Session
 from ..db import get_db
 from ..models import CrawlLog, SeatWatch, Showtime, User
 from ..schemas import CrawlerConfigIn, CrawlLogOut, RoleIn, UserOut
-from ..security import require_admin
+from ..config import settings
+from ..security import require_admin, require_admin_write
+from rpa.service import CHAINS, crawl_chain
+
 from ..services.crawler import crawler
 from ..services.ws import manager
 
@@ -44,12 +47,14 @@ def users(q: str | None = Query(None, max_length=50), db: Session = Depends(get_
 
 
 @router.patch("/users/{user_id}/role", response_model=UserOut)
-async def change_role(user_id: int, body: RoleIn, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+async def change_role(user_id: int, body: RoleIn, admin: User = Depends(require_admin_write), db: Session = Depends(get_db)):
     user = db.get(User, user_id)
     if not user:
         raise HTTPException(404, "회원을 찾을 수 없습니다.")
     if user.id == admin.id and body.role != "admin":
         raise HTTPException(400, "본인의 관리자 권한은 해제할 수 없습니다.")
+    if settings.admin_email and user.email == settings.admin_email.lower() and body.role != "admin":
+        raise HTTPException(400, "환경 변수(ADMIN_EMAIL)로 지정된 관리자는 권한을 변경할 수 없습니다.")
     user.role = body.role
     db.commit()
     await manager.send_user(user.id, {"type": "role_changed", "role": user.role})
@@ -62,13 +67,13 @@ def crawler_status():
     return crawler.status()
 
 
-@router.put("/crawler/config")
+@router.put("/crawler/config", dependencies=[Depends(require_admin_write)])
 def crawler_config(body: CrawlerConfigIn):
     crawler.configure(body.interval_minutes, body.enabled)
     return crawler.status()
 
 
-@router.post("/crawler/run", status_code=202)
+@router.post("/crawler/run", status_code=202, dependencies=[Depends(require_admin_write)])
 async def crawler_run(chain: str | None = None):
     if crawler.running:
         raise HTTPException(409, "이미 크롤링이 실행 중입니다.")
@@ -76,6 +81,21 @@ async def crawler_run(chain: str | None = None):
     _tasks.add(task)
     task.add_done_callback(_tasks.discard)
     return {"accepted": True}
+
+
+_probe_lock = asyncio.Lock()
+
+
+@router.post("/crawler/probe")
+async def crawler_probe(chain: str = Query(..., pattern="^(" + "|".join(CHAINS) + ")$")):
+    """서버(현재 실행 환경)에서 실제 사이트 수집 가능 여부 진단. DB 에는 저장하지 않음 (읽기 전용 계정 허용)."""
+    if _probe_lock.locked():
+        raise HTTPException(409, "다른 진단이 실행 중입니다.")
+    async with _probe_lock:
+        r = await asyncio.to_thread(crawl_chain, chain, datetime.now().date() + timedelta(days=1), "real",
+                                    settings.rpa_timeout_seconds, settings.rpa_headless, settings.rpa_proxy_url)
+    return {"chain": chain, "ok": r.ok, "via": r.via, "items": len(r.items), "duration_ms": r.duration_ms,
+            "message": r.message, "sample": r.items[0].to_dict() if r.items else None}
 
 
 @router.get("/crawler/logs", response_model=list[CrawlLogOut])

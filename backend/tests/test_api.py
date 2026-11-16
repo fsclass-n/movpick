@@ -54,16 +54,48 @@ def test_demo_login_and_admin_guard(client):
     assert client.get("/api/admin/users", headers=admin_h).status_code == 200
 
 
+def test_demo_admin_is_read_only(client):
+    demo_h, root_h = auth(client, "admin"), auth(client, "root")
+    assert client.get("/api/auth/me", headers=demo_h).json()["read_only"] is True
+    assert client.get("/api/auth/me", headers=root_h).json()["read_only"] is False
+    for path in ("/api/admin/users", "/api/admin/crawler", "/api/admin/crawler/logs", "/api/admin/summary"):
+        assert client.get(path, headers=demo_h).status_code == 200, path
+    users = client.get("/api/admin/users", headers=demo_h).json()
+    target = next(u for u in users if u["email"] == "user@movpick.app")
+    writes = [
+        client.patch(f"/api/admin/users/{target['id']}/role", json={"role": "admin"}, headers=demo_h),
+        client.put("/api/admin/crawler/config", json={"interval_minutes": 15, "enabled": True}, headers=demo_h),
+        client.post("/api/admin/crawler/run", headers=demo_h),
+    ]
+    assert all(r.status_code == 403 and "읽기 전용" in r.json()["detail"] for r in writes)
+    root = next(u for u in users if u["email"] == "root@movpick.app")
+    assert root["role"] == "admin"
+    res = client.patch(f"/api/admin/users/{root['id']}/role", json={"role": "user"}, headers=root_h)
+    assert res.status_code == 400  # 본인 + 환경 변수 관리자 보호
+
+
+def test_env_admin_rejects_weak_password(monkeypatch):
+    from backend.app.routers import auth as auth_mod
+    monkeypatch.setattr(auth_mod, "settings", replace(auth_mod.settings, admin_email="weak@movpick.app", admin_password="weak"))
+    with SessionLocal() as db:
+        assert auth_mod.ensure_env_admin(db) is None
+    monkeypatch.setattr(auth_mod, "settings", replace(auth_mod.settings, admin_email="user@movpick.app", admin_password="Strong!2345"))
+    with SessionLocal() as db:
+        assert auth_mod.ensure_env_admin(db) is None  # 테스트 계정 이메일 사용 불가
+
+
 def test_role_change(client):
-    admin_h = auth(client, "admin")
+    admin_h = auth(client, "root")
     users = client.get("/api/admin/users", headers=admin_h).json()
     target = next(u for u in users if u["email"] == "tester@movpick.app")
     res = client.patch(f"/api/admin/users/{target['id']}/role", json={"role": "admin"}, headers=admin_h)
     assert res.json()["role"] == "admin"
     res = client.patch(f"/api/admin/users/{target['id']}/role", json={"role": "user"}, headers=admin_h)
     assert res.json()["role"] == "user"
-    me = client.get("/api/auth/me", headers=admin_h).json()
-    assert client.patch(f"/api/admin/users/{me['id']}/role", json={"role": "user"}, headers=admin_h).status_code == 400
+    demo = next(u for u in users if u["email"] == "admin@movpick.app")
+    res = client.patch(f"/api/admin/users/{demo['id']}/role", json={"role": "user"}, headers=admin_h)
+    assert res.json()["role"] == "user"
+    client.patch(f"/api/admin/users/{demo['id']}/role", json={"role": "admin"}, headers=admin_h)
 
 
 def test_showtimes_seats_watch_and_alert(client, monkeypatch):
@@ -100,7 +132,8 @@ def test_showtimes_seats_watch_and_alert(client, monkeypatch):
 
 
 def test_stats_and_ws(client):
-    assert "movies" in client.get("/api/stats/booking-rates").json()
+    stats = client.get("/api/stats/booking-rates").json()
+    assert "movies" in stats and "top" in stats
     with client.websocket_connect("/ws") as ws:
         assert ws.receive_json()["type"] == "hello"
         ws.send_json({"type": "ping"})

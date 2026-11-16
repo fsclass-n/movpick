@@ -9,6 +9,7 @@
 #     RPA_INGEST_TOKEN='<Render 와 같은 값>' bash setup.sh
 #
 #   옵션 환경변수: MOVPICK_API_URL(기본 https://movpick-api.onrender.com), CGV_EVERY_MINUTES(기본 30), MOVPICK_DIR(기본 ~/movpick)
+#                  CHECK_ONLY=1 → CGV 접근·토큰 사전 점검만 하고 종료
 set -euo pipefail
 
 : "${RPA_INGEST_TOKEN:?RPA_INGEST_TOKEN 을 지정하세요 (Render 의 RPA_INGEST_TOKEN 과 같은 값)}"
@@ -38,6 +39,7 @@ case "$CODE" in
   404) echo "✖ 백엔드에 RPA_INGEST_TOKEN 이 설정되지 않았습니다 (Render 환경 변수 확인)." >&2; exit 1 ;;
   *)   echo "  ! 백엔드 응답 HTTP $CODE (Render 슬립 상태일 수 있음) — 계속 진행합니다." ;;
 esac
+if [ "${CHECK_ONLY:-0}" = "1" ]; then echo "✔ 사전 점검 완료 (CHECK_ONLY=1, 설치 생략)"; exit 0; fi
 
 echo "▶ 3/5 Docker · Git 설치"
 if ! command -v git >/dev/null; then

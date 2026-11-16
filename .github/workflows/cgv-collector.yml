@@ -1,14 +1,13 @@
 name: CGV Collector
 
-# CGV(Cloudflare)는 Render 데이터센터 IP를 차단하므로, PC 와 무관하게 GitHub Actions 러너에서
+# CGV(Cloudflare WAF)는 국외 IP(Render·GitHub 호스티드 러너 = 미국)를 403 으로 차단한다.
+# 국내 서버에 self-hosted runner 를 등록하고 repo variable CGV_RUNNER(러너 라벨)를 설정하면
 # 30분마다 수집해 백엔드 /api/rpa/ingest 로 전송한다. (repo secret: RPA_INGEST_TOKEN)
+# CGV_RUNNER 미설정 시 스케줄 실행은 건너뛰고, 수동 실행(workflow_dispatch)은 진단용으로 GitHub 러너에서 돈다.
 on:
   schedule:
     - cron: "*/30 * * * *"
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths: [".github/workflows/cgv-collector.yml", "rpa/adapters/cgv.py", "rpa/runner.py"]
 
 concurrency:
   group: cgv-collector
@@ -16,8 +15,9 @@ concurrency:
 
 jobs:
   collect:
+    if: ${{ vars.CGV_RUNNER != '' || github.event_name == 'workflow_dispatch' }}
     # Playwright 1.52 install-deps 는 Ubuntu 26(ubuntu-latest) 미지원 → 24.04 고정
-    runs-on: ubuntu-24.04
+    runs-on: ${{ vars.CGV_RUNNER || 'ubuntu-24.04' }}
     timeout-minutes: 10
     env:
       PYTHONIOENCODING: utf-8

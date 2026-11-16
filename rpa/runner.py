@@ -3,15 +3,19 @@
     # 수집 결과 확인
     python -m rpa.runner --chain all --mode auto --date 2026-11-16 [--json out.json] [--headed]
 
-    # 원격 수집기: 국내 PC에서 CGV를 수집해 백엔드로 전송 (RPA_INGEST_TOKEN 필요)
+    # 원격 수집기: 국내 PC/서버에서 CGV를 수집해 백엔드로 전송 (RPA_INGEST_TOKEN 필요)
     python -m rpa.runner --chain cgv --mode real --days 2 --push https://movpick-api.onrender.com
+
+    # 상주(daemon) 모드: 30분마다 반복 (국내 클라우드 VM / Docker)
+    python -m rpa.runner --chain cgv --mode real --days 2 --push https://movpick-api.onrender.com --every 30
 """
 
 import argparse
 import json
 import os
 import socket
-from datetime import date, timedelta
+import time
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 import pandas as pd
@@ -49,11 +53,23 @@ def main() -> None:
     ap.add_argument("--json", help="결과를 JSON 파일로 저장")
     ap.add_argument("--push", metavar="API_URL", help="실데이터를 백엔드 /api/rpa/ingest 로 전송")
     ap.add_argument("--token", default=os.getenv("RPA_INGEST_TOKEN", ""), help="기본값: 환경변수 RPA_INGEST_TOKEN")
+    ap.add_argument("--every", type=int, default=0, metavar="MINUTES", help="N분마다 반복 실행 (상주 모드, 시작 일자는 매번 오늘)")
     args = ap.parse_args()
     if args.push and not args.token:
         ap.error("--push 에는 --token 또는 RPA_INGEST_TOKEN 환경변수가 필요합니다.")
 
-    start = date.fromisoformat(args.date)
+    if not args.every:
+        raise SystemExit(1 if collect(args, date.fromisoformat(args.date)) else 0)
+    while True:
+        print(f"===== {datetime.now():%Y-%m-%d %H:%M:%S} 수집 시작 (every {args.every}m)", flush=True)
+        try:
+            collect(args, date.today())
+        except Exception as e:  # noqa: BLE001 - 상주 모드는 한 번의 실패로 종료하지 않음
+            print(f"수집 오류: {type(e).__name__}: {e}", flush=True)
+        time.sleep(args.every * 60)
+
+
+def collect(args, start: date) -> int:
     rows, failed = [], 0
     for chain in CHAINS if args.chain == "all" else [args.chain]:
         for day in (start + timedelta(days=i) for i in range(max(1, args.days))):
@@ -69,7 +85,7 @@ def main() -> None:
             failed += 0 if r.ok else 1
             if os.getenv("GITHUB_ACTIONS") and not r.ok:
                 print(f"::error title={chain} {day}::{r.message}{note}")
-            print(f"[{chain:8}] {day} ok={r.ok} source={r.source} items={len(r.items)} {r.duration_ms}ms - {r.message}{note}")
+            print(f"[{chain:8}] {day} ok={r.ok} source={r.source} items={len(r.items)} {r.duration_ms}ms - {r.message}{note}", flush=True)
             rows += [s.to_dict() for s in r.items]
 
     if rows and not args.push:
@@ -82,7 +98,7 @@ def main() -> None:
     if args.json:
         with open(args.json, "w", encoding="utf-8") as f:
             json.dump(rows, f, ensure_ascii=False, indent=2)
-    raise SystemExit(1 if failed else 0)
+    return failed
 
 
 if __name__ == "__main__":

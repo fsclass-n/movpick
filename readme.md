@@ -61,6 +61,10 @@ docker compose up --build
 
 `DEMO_LOGIN_ENABLED=false` 로 비활성화할 수 있습니다.
 
+- **테스트 관리자는 읽기 전용**입니다. 관리자 화면 조회·수집 진단만 가능하고 크롤러 실행/설정, 회원 권한 변경은 403으로 거부됩니다.
+- **실제 관리자**는 `.env`(Render 환경 변수)의 `ADMIN_EMAIL` / `ADMIN_PASSWORD` / `ADMIN_NAME` 으로 기동 시 생성·동기화됩니다.
+  비밀번호는 서비스 비밀번호 규칙을 만족해야 하며, 이 계정은 다른 관리자가 권한을 해제할 수 없습니다.
+
 ## RPA 수집 방식
 
 | 체인 | 방식 | 비고 |
@@ -74,23 +78,30 @@ docker compose up --build
   크롤링 사이 구간의 취소표/신규 예매는 `SEAT_SIMULATION=true` 일 때 시뮬레이션되며, 다음 크롤링에서 실제 잔여석 수로 보정됩니다.
 - 명당 자리: 스크린 기준 약 62% 깊이 · 중앙 열에 가까울수록 높은 점수(NumPy), 상위 18% 좌석을 명당으로 표시합니다.
 
-### CGV 원격 수집기 (데이터센터 IP 차단 대응)
+### CGV 원격 수집기 (국외 IP 차단 대응)
 
-CGV는 해외 데이터센터 IP(Render)에서의 요청을 **HTTP 403**으로 차단합니다. 국내 PC에서 수집해 백엔드로 전송하는 방식으로 해결합니다.
+CGV 스케줄 API는 Cloudflare WAF가 **국외 IP를 403으로 차단**합니다(진단 결과: 국내 `ray=ICN` 허용, Render·GitHub 호스티드 러너 `ray=PDX` 차단 — 브라우저 헤더/Playwright 모두 동일).
+따라서 CGV는 **국내 IP**에서 수집해 백엔드로 전송합니다. 메가박스·롯데시네마는 Render에서 직접 수집됩니다.
+관리자 화면의 **수집 진단** 버튼으로 현재 서버에서의 접속 가능 여부를 언제든 확인할 수 있습니다.
 
-1. 토큰 생성 후 **Render 대시보드**와 **수집기 PC의 `.env`** 에 같은 값으로 `RPA_INGEST_TOKEN` 등록
-   (`python -c "import secrets;print(secrets.token_urlsafe(32))"`)
-2. Render 백엔드에 `RPA_REMOTE_CHAINS=cgv` 등록 → 서버는 CGV를 직접 수집하지 않고 원격 데이터를 사용
-3. 수집기 PC에서 실행 / 작업 스케줄러 등록(30분 주기)
+공통 설정: 토큰을 생성해 **Render**와 **수집기 환경의 `.env`**(또는 GitHub secret)에 같은 값으로 `RPA_INGEST_TOKEN` 등록, Render에 `RPA_REMOTE_CHAINS=cgv` 등록
+(`python -c "import secrets;print(secrets.token_urlsafe(32))"`)
 
-```powershell
-.venv\Scripts\python -m rpa.runner --chain cgv --mode real --days 2 --push https://movpick-api.onrender.com
-schtasks /Create /SC MINUTE /MO 30 /TN "movpick-cgv-collector" /TR "powershell -NoProfile -ExecutionPolicy Bypass -File D:\git605\movpick\scripts\cgv-collector.ps1"
+| 방식 | PC 의존 | 설정 |
+| --- | --- | --- |
+| **국내 클라우드 VM + Docker** (권장: Oracle Cloud Free Tier 서울/춘천, AWS 서울 등) | 없음 | 저장소 clone → `.env` 작성 → `docker compose --profile collector up -d cgv-collector` (30분 상주 수집) |
+| 국내 VM + GitHub self-hosted runner | 없음 | 러너 등록(라벨 예: `kr`) → repo variable `CGV_RUNNER=kr`, secret `RPA_INGEST_TOKEN` → `CGV Collector` 워크플로가 30분마다 실행 |
+| 국내 프록시 | 없음 | Render에 `RPA_PROXY_URL=http://user:pass@host:port` 등록, `RPA_REMOTE_CHAINS` 제거 → 서버가 직접 수집 |
+| 국내 PC 작업 스케줄러 (임시) | 있음 | `scripts\cgv-collector.ps1` 를 30분 주기로 등록 |
+
+```bash
+# 수동 실행 / 상주 실행
+python -m rpa.runner --chain cgv --mode real --days 2 --push https://movpick-api.onrender.com
+python -m rpa.runner --chain cgv --mode real --days 2 --push https://movpick-api.onrender.com --every 30
 ```
 
 - 해당 일자의 실데이터가 있으면 수집이 실패해도 모의 데이터와 섞지 않고 유지합니다(모든 체인 공통). `RPA_REAL_TTL_MINUTES`(기본 180분)를 넘기면 관리자 화면에 '갱신 지연'으로 표시됩니다.
 - 실데이터가 전혀 없는 일자만 모의 데이터로 대체합니다.
-- 대안: `RPA_PROXY_URL` 에 국내 프록시를 지정하면 서버에서 직접 수집합니다.
 
 ## 배포
 

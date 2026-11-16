@@ -1,5 +1,6 @@
 # Build context: repository root  (docker build -f backend/Dockerfile .)
-FROM python:3.11-slim
+# Playwright 1.52 --with-deps 는 Debian 12(bookworm)까지 지원 (3.11-slim 은 trixie 로 변경됨)
+FROM python:3.11-slim-bookworm
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \

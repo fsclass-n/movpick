@@ -26,3 +26,8 @@
 - Pipeline: `tts.py` → `export_slides.ps1` (PowerShell scripts need UTF-8 BOM for Korean paths) → `record_demo.py` → `compose.py --rebuild` → `check_final.py` → `gen_guide.py`.
 - Demo is recorded with CDP screencast frames (timestamped); Playwright's built-in video drifts vs wall clock and must not be used for cuts.
 - ffmpeg comes from winget (Gyan.FFmpeg); tools locate it automatically. `build/` is git-ignored; only `movpick_final.mp4` and `movpick_highlight.mp4` are committed (keep the final ≤95MB, GitHub hard limit is 100MB).
+
+## Documents (docs/*.hwpx → docs/pdf)
+- `docs/tools/build_docs.py` fills the journal templates (only empty cells; metadata kept) and writes the deliverables, then saves HWPX/PDF via Hancom COM.
+- Hancom automation needs the security module: registry `HKCU\Software\HNC\HwpAutomation\Modules\FilePathCheckerModule` → `.venv\Lib\site-packages\pyhwpx\FilePathCheckerModule.dll` (`pip install pyhwpx pywin32`).
+- Kill leftover hidden `Hwp` processes if a COM call hangs.

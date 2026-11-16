@@ -30,6 +30,15 @@ FETCH_JS = """async (urls) => Promise.all(urls.map(async (u) => {
 }))"""
 
 
+def block_reason(headers, body: str) -> str:
+    """Cloudflare 차단 유형 진단: challenge(JS 챌린지) / block(WAF 규칙) + 페이지 제목"""
+    title = re.search(r"<title>([^<]{0,80})", body or "", re.I)
+    parts = [f"cf-mitigated={headers.get('cf-mitigated')}" if headers.get("cf-mitigated") else "",
+             f"ray={headers.get('cf-ray', '')[-3:]}" if headers.get("cf-ray") else "",
+             f"title={title.group(1).strip()}" if title else ""]
+    return f" ({', '.join(p for p in parts if p)})" if any(parts) else ""
+
+
 class CgvAdapter(BaseAdapter):
     """CGV 스케줄 API (Cloudflare WAF).
     1차: 브라우저 XHR 헤더를 갖춘 HTTP 요청 (가볍고 빠름)
@@ -63,7 +72,7 @@ class CgvAdapter(BaseAdapter):
             for u in urls:
                 res = s.get(u, timeout=self.timeout)
                 if res.status_code != 200:
-                    raise CrawlError(f"HTTP 수집 차단: {res.status_code}")
+                    raise CrawlError(f"HTTP 수집 차단: {res.status_code}{block_reason(res.headers, res.text)}")
                 out.append(res.json())
         return out
 

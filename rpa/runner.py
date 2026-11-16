@@ -67,6 +67,8 @@ def main() -> None:
             elif args.push:
                 note = " | 실데이터가 아니므로 전송 생략"
             failed += 0 if r.ok else 1
+            if os.getenv("GITHUB_ACTIONS") and not r.ok:
+                print(f"::error title={chain} {day}::{r.message}{note}")
             print(f"[{chain:8}] {day} ok={r.ok} source={r.source} items={len(r.items)} {r.duration_ms}ms - {r.message}{note}")
             rows += [s.to_dict() for s in r.items]
 

@@ -1,0 +1,658 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>movpick · 포트폴리오 — 명당 자리 실시간 예매 추천 플랫폼</title>
+<meta name="description" content="RPA 기반 영화 상영 시간표 자동 동기화 및 명당 자리 실시간 예매 추천 플랫폼 movpick 포트폴리오 — 10분 발표·시연 영상, 아키텍처, 문제 해결 과정" />
+<meta property="og:title" content="movpick — 명당 자리가 비는 순간, 가장 먼저" />
+<meta property="og:description" content="RPA 수집 · 명당 점수 모델 · WebSocket 실시간 취소표 알림 · 10분 발표·시연 영상" />
+<meta property="og:image" content="assets/thumbs/full.jpg" />
+<meta name="theme-color" content="#07070c" />
+<link rel="icon" href="frontend/public/favicon.svg" type="image/svg+xml" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Black+Han+Sans&display=swap" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" rel="stylesheet" />
+<style>
+  :root {
+    --ink: #07070c; --surface: #0f0f18; --surface-2: #171724; --line: #262638;
+    --fg: #ecebf5; --muted: #9a98b0; --accent: #ff3d57; --gold: #f5c518; --mint: #34d399; --sky: #60a5fa;
+    --display: "Bebas Neue", "Black Han Sans", "Pretendard Variable", sans-serif;
+    --title: "Black Han Sans", "Pretendard Variable", sans-serif;
+    --sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+    --wrap: min(1200px, 100% - 40px);
+    --radius: 18px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 76px; -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--ink); color: var(--fg); font-family: var(--sans); line-height: 1.6; word-break: keep-all;
+    -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+  body::before { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+    background: radial-gradient(1100px 600px at 8% -12%, #ff3d5724, transparent 60%),
+                radial-gradient(900px 520px at 108% 8%, #60a5fa16, transparent 60%),
+                radial-gradient(700px 420px at 50% 115%, #f5c51810, transparent 60%); }
+  a { color: inherit; text-decoration: none; }
+  img { max-width: 100%; display: block; }
+  button { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 8px; }
+  .wrap { width: var(--wrap); margin-inline: auto; }
+  .kicker { color: var(--accent); font-size: 12px; font-weight: 700; letter-spacing: .32em; text-transform: uppercase; }
+  h1, h2, h3 { margin: 0; font-weight: 400; }
+  h2.section-title { font-family: var(--title); font-size: clamp(28px, 4vw, 40px); line-height: 1.2; margin-top: 10px; }
+  .lead { color: var(--muted); max-width: 680px; margin: 12px 0 0; }
+  section { padding: 96px 0 0; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border: 1px solid var(--line); border-radius: 999px;
+    font-size: 12.5px; color: var(--muted); background: #0f0f18aa; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 20px; border-radius: 14px;
+    font-weight: 700; font-size: 15px; border: 1px solid var(--line); background: var(--surface-2); transition: transform .2s, border-color .2s, filter .2s; cursor: pointer; }
+  .btn:hover { transform: translateY(-2px); border-color: #ffffff40; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); box-shadow: 0 12px 30px -12px #ff3d57aa; }
+  .btn.primary:hover { filter: brightness(1.08); }
+  .card { background: #0f0f18cc; border: 1px solid var(--line); border-radius: var(--radius); }
+
+  /* ----------------------------------------------------------- nav */
+  header.nav { position: sticky; top: 0; z-index: 50; transition: background .3s, border-color .3s; border-bottom: 1px solid transparent; }
+  header.nav.scrolled { background: #07070cd9; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-color: var(--line); }
+  .nav-inner { height: 64px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .logo { display: flex; align-items: center; gap: 10px; font-family: var(--display); font-size: 26px; letter-spacing: .04em; }
+  .logo b { color: var(--accent); font-weight: 400; }
+  .logo-mark { width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; background: #ff3d5726; }
+  .nav-links { display: flex; gap: 4px; }
+  .nav-links a { padding: 8px 12px; border-radius: 10px; font-size: 14.5px; color: var(--muted); transition: color .2s, background .2s; }
+  .nav-links a:hover, .nav-links a.active { color: var(--fg); background: var(--surface-2); }
+  .nav-cta { display: flex; gap: 8px; }
+  .nav-cta .btn { padding: 9px 14px; font-size: 14px; }
+  .burger { display: none; width: 42px; height: 42px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface-2); position: relative; cursor: pointer; }
+  .burger span { position: absolute; left: 11px; width: 20px; height: 2px; border-radius: 2px; background: var(--fg); transition: transform .3s, opacity .3s, top .3s; }
+  .burger span:nth-child(1) { top: 14px; } .burger span:nth-child(2) { top: 20px; } .burger span:nth-child(3) { top: 26px; }
+  .nav.open .burger span:nth-child(1) { top: 20px; transform: rotate(45deg); }
+  .nav.open .burger span:nth-child(2) { opacity: 0; transform: scaleX(0); }
+  .nav.open .burger span:nth-child(3) { top: 20px; transform: rotate(-45deg); }
+
+  /* ----------------------------------------------------------- hero */
+  .hero { padding: 56px 0 0; }
+  .hero-grid { display: grid; grid-template-columns: 1.05fr 1fr; gap: 48px; align-items: center; }
+  .hero h1 { font-family: var(--display); font-size: clamp(64px, 10vw, 128px); line-height: .9; letter-spacing: .02em; margin-top: 14px; }
+  .hero h1 b { color: var(--accent); font-weight: 400; }
+  .hero .tagline { font-family: var(--title); font-size: clamp(22px, 2.6vw, 32px); line-height: 1.3; margin-top: 18px; }
+  .hero .tagline em { color: var(--gold); font-style: normal; }
+  .hero p.desc { color: var(--muted); margin: 16px 0 0; max-width: 560px; }
+  .hero-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 26px; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 36px; }
+  .stat { padding: 14px 16px; border-radius: 14px; background: #171724aa; border: 1px solid var(--line); }
+  .stat b { display: block; font-family: var(--display); font-size: 32px; line-height: 1; letter-spacing: .02em; }
+  .stat span { display: block; margin-top: 6px; font-size: 12px; color: var(--muted); }
+
+  /* ----------------------------------------------------------- video cards */
+  .vcard { position: relative; overflow: hidden; border-radius: var(--radius); border: 1px solid var(--line); background: var(--surface);
+    transition: transform .35s cubic-bezier(.2,.7,.2,1), border-color .3s, box-shadow .3s; }
+  .vcard:hover { transform: translateY(-4px); border-color: #ff3d5766; box-shadow: 0 24px 60px -28px #ff3d5766; }
+  .media { position: relative; aspect-ratio: 16 / 9; background: #000; }
+  .media .thumb { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; padding: 0; cursor: pointer; background: #000;
+    transition: opacity .45s ease, transform .6s ease; }
+  .media .thumb img { width: 100%; height: 100%; object-fit: cover; transition: transform .8s ease; }
+  .vcard:hover .thumb img { transform: scale(1.035); }
+  .media .thumb::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 45%, #07070ce6); }
+  .play { position: absolute; left: 50%; top: 50%; z-index: 2; width: 74px; height: 74px; margin: -37px 0 0 -37px; border-radius: 50%;
+    display: grid; place-items: center; background: #ff3d57e6; box-shadow: 0 0 0 0 #ff3d5788; animation: pulse 2.4s infinite; transition: transform .25s; }
+  .vcard:hover .play { transform: scale(1.08); }
+  .play svg { width: 26px; height: 26px; margin-left: 4px; fill: #fff; }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 #ff3d5770; } 70% { box-shadow: 0 0 0 22px #ff3d5700; } 100% { box-shadow: 0 0 0 0 #ff3d5700; } }
+  .badge { position: absolute; z-index: 2; top: 12px; left: 12px; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700;
+    background: #07070cc9; border: 1px solid #ffffff22; backdrop-filter: blur(6px); }
+  .badge.time { left: auto; right: 12px; font-family: ui-monospace, Consolas, monospace; font-weight: 600; }
+  .thumb-caption { position: absolute; z-index: 2; left: 16px; right: 16px; bottom: 14px; text-align: left; }
+  .thumb-caption strong { display: block; font-family: var(--title); font-size: 20px; line-height: 1.25; }
+  .thumb-caption small { color: #d6d4e6; font-size: 13px; }
+  .media video { position: absolute; inset: 0; width: 100%; height: 100%; background: #000; opacity: 0; transition: opacity .45s ease; }
+  .media.playing video { opacity: 1; }
+  .media.playing .thumb { opacity: 0; pointer-events: none; transform: scale(1.02); }
+  .media .close { position: absolute; z-index: 4; top: 10px; right: 10px; width: 36px; height: 36px; border-radius: 50%; border: 1px solid #ffffff33;
+    background: #07070cb3; color: #fff; cursor: pointer; display: none; font-size: 18px; line-height: 1; }
+  .media.playing .close { display: grid; place-items: center; }
+  .end { position: absolute; inset: 0; z-index: 3; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+    background: #07070cd9; backdrop-filter: blur(4px); text-align: center; padding: 20px; }
+  .media.ended .end { display: flex; animation: fade .35s ease; }
+  .end p { margin: 0; color: var(--muted); font-size: 14px; }
+  .end .row { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .end .btn { padding: 10px 16px; font-size: 14px; }
+  @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+  .vbody { padding: 16px 18px 18px; }
+  .vbody h3 { font-family: var(--title); font-size: 19px; }
+  .vbody p { margin: 6px 0 0; color: var(--muted); font-size: 14px; }
+  .vbody .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+  .vbody .chips .chip { font-size: 11.5px; padding: 3px 10px; }
+  .featured .thumb-caption strong { font-size: 24px; }
+  .video-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 34px; }
+
+  /* ----------------------------------------------------------- project */
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 34px; }
+  .three { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 34px; }
+  .box { padding: 24px; }
+  .box h3 { font-family: var(--title); font-size: 21px; margin-top: 6px; }
+  .box p, .box li { color: var(--muted); font-size: 14.5px; }
+  .box ul { margin: 12px 0 0; padding-left: 18px; }
+  .box li { margin: 6px 0; }
+  .num { font-family: var(--display); font-size: 40px; line-height: 1; color: var(--accent); }
+  .feature-icon { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; font-weight: 800; }
+  .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 18px; counter-reset: s; }
+  .step { padding: 18px; border-radius: 14px; background: var(--surface-2); border: 1px solid var(--line); position: relative; }
+  .step b { display: block; font-size: 15px; }
+  .step span { display: block; font-size: 13px; color: var(--muted); margin-top: 4px; }
+  .step::before { counter-increment: s; content: "0" counter(s); font-family: var(--display); font-size: 24px; color: var(--gold); display: block; }
+
+  /* ----------------------------------------------------------- gallery */
+  .gallery { display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; margin-top: 34px; }
+  .shot { grid-column: span 2; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); background: var(--surface); cursor: zoom-in; padding: 0; text-align: left; }
+  .shot.wide { grid-column: span 3; }
+  .shot.mobile { grid-column: span 1; }
+  .shot img { width: 100%; aspect-ratio: 16 / 10; object-fit: cover; object-position: top; transition: transform .6s ease; }
+  .shot.mobile img { aspect-ratio: 9 / 19.5; }
+  .shot:hover img { transform: scale(1.04); }
+  .shot figcaption { padding: 10px 12px; font-size: 13px; color: var(--muted); }
+  .shot figcaption b { color: var(--fg); font-weight: 600; margin-right: 6px; }
+  dialog.lightbox { border: 0; padding: 0; background: transparent; max-width: min(1400px, 94vw); max-height: 92vh; }
+  dialog.lightbox::backdrop { background: #000000d0; backdrop-filter: blur(4px); }
+  dialog.lightbox img { max-height: 86vh; width: auto; margin: 0 auto; border-radius: 12px; border: 1px solid var(--line); }
+  dialog.lightbox p { text-align: center; color: var(--fg); margin: 10px 0 0; font-size: 14px; }
+
+  /* ----------------------------------------------------------- architecture */
+  .arch { display: grid; grid-template-columns: 1fr 1.25fr 1fr; gap: 16px; margin-top: 34px; align-items: stretch; }
+  .node { padding: 18px; border-radius: 16px; background: var(--surface-2); border: 1px solid var(--line); }
+  .node h4 { margin: 0; font-size: 15px; }
+  .node p { margin: 6px 0 0; font-size: 13px; color: var(--muted); }
+  .node + .node { margin-top: 12px; }
+  .node.server { border-color: #ff3d5799; background: linear-gradient(180deg, #ff3d570f, transparent); height: 100%; }
+  .node.server .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+  .node.server .grid div { padding: 10px 12px; border-radius: 12px; background: #07070c99; border: 1px solid var(--line); font-size: 13px; }
+  .node.server .grid div b { display: block; font-size: 13.5px; }
+  .node.server .grid div span { color: var(--muted); font-size: 12px; }
+  .tag-sky { border-color: #60a5fa88; } .tag-mint { border-color: #34d39988; } .tag-gold { border-color: #f5c51888; } .tag-dash { border-style: dashed; border-color: #f5c51888; }
+  .stack { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 18px; }
+  .stack .box { padding: 18px 20px; }
+  .stack .box h4 { margin: 0; font-size: 13px; color: var(--gold); letter-spacing: .08em; }
+  .stack .box p { margin: 6px 0 0; color: var(--fg); font-size: 14px; }
+  .stack .box small { display: block; margin-top: 6px; color: var(--muted); font-size: 12.5px; }
+
+  /* ----------------------------------------------------------- troubleshooting */
+  .trouble { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; margin-top: 34px; }
+  .trouble .box { position: relative; overflow: hidden; }
+  .trouble .box::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 3px; background: var(--accent); }
+  .flow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 14px; }
+  .flow span { padding: 4px 10px; border-radius: 999px; font-size: 12px; background: #07070c; border: 1px solid var(--line); color: #d6d4e6; }
+  .flow i { color: var(--muted); font-style: normal; font-size: 12px; }
+  .flow span.ok { border-color: #34d39999; color: var(--mint); }
+  .flow span.ng { border-color: #ff3d5799; color: #ff8a9b; }
+
+  /* ----------------------------------------------------------- team & links */
+  .team { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 34px; }
+  .member { padding: 22px; text-align: center; }
+  .avatar { width: 64px; height: 64px; border-radius: 50%; margin: 0 auto; display: grid; place-items: center; font-family: var(--title); font-size: 24px;
+    background: linear-gradient(135deg, #ff3d5755, #f5c51833); border: 1px solid var(--line); }
+  .member b { display: block; margin-top: 12px; font-size: 16px; }
+  .member span { font-size: 13px; color: var(--muted); }
+  .links { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 34px; }
+  .link { padding: 20px; display: flex; flex-direction: column; gap: 4px; transition: transform .25s, border-color .25s; }
+  .link:hover { transform: translateY(-3px); border-color: #ff3d5766; }
+  .link b { font-size: 16px; }
+  .link span { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+  .link em { font-style: normal; font-size: 11px; color: var(--gold); letter-spacing: .1em; font-weight: 700; }
+  footer { margin-top: 110px; border-top: 1px solid var(--line); padding: 34px 0 48px; color: var(--muted); font-size: 13px; }
+  footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; }
+  .totop { position: fixed; right: 22px; bottom: 22px; z-index: 40; width: 48px; height: 48px; border-radius: 50%; border: 0; background: var(--accent);
+    color: #fff; cursor: pointer; box-shadow: 0 14px 34px -12px #ff3d57; opacity: 0; transform: translateY(12px); pointer-events: none; transition: .3s; font-size: 20px; }
+  .totop.show { opacity: 1; transform: none; pointer-events: auto; }
+
+  /* ----------------------------------------------------------- reveal */
+  .reveal { opacity: 0; transform: translateY(18px); transition: opacity .7s ease, transform .7s cubic-bezier(.2,.7,.2,1); }
+  .reveal.in { opacity: 1; transform: none; }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; } .reveal { opacity: 1; transform: none; transition: none; } .play { animation: none; }
+    .vcard, .vcard:hover, .vcard .thumb img { transition: none; transform: none; }
+  }
+
+  /* ----------------------------------------------------------- responsive */
+  @media (max-width: 1024px) {
+    .hero-grid { grid-template-columns: 1fr; gap: 36px; }
+    .video-grid, .three, .links { grid-template-columns: repeat(2, 1fr); }
+    .arch { grid-template-columns: 1fr; }
+    .steps { grid-template-columns: repeat(2, 1fr); }
+    .gallery { grid-template-columns: repeat(4, 1fr); }
+    .shot, .shot.wide { grid-column: span 2; } .shot.mobile { grid-column: span 1; }
+    .team { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 760px) {
+    :root { --wrap: min(1200px, 100% - 32px); }
+    section { padding-top: 72px; }
+    .nav-links, .nav-cta { display: none; }
+    .burger { display: block; }
+    .nav.open .nav-links { display: flex; flex-direction: column; position: absolute; top: 64px; left: 0; right: 0; padding: 10px 16px 18px;
+      background: #07070cf2; border-bottom: 1px solid var(--line); backdrop-filter: blur(14px); animation: drop .28s ease; }
+    .nav.open .nav-links a { padding: 13px 12px; font-size: 16px; }
+    @keyframes drop { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .video-grid, .two, .three, .trouble, .stack, .links { grid-template-columns: 1fr; }
+    .steps { grid-template-columns: 1fr 1fr; }
+    .gallery { grid-template-columns: repeat(2, 1fr); }
+    .shot, .shot.wide { grid-column: span 2; } .shot.mobile { grid-column: span 1; }
+    .play { width: 60px; height: 60px; margin: -30px 0 0 -30px; }
+    .thumb-caption strong { font-size: 17px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="nav" id="nav">
+  <div class="wrap nav-inner">
+    <a class="logo" href="#top" aria-label="movpick 처음으로">
+      <span class="logo-mark"><svg width="18" height="18" viewBox="0 0 64 64" aria-hidden="true"><path d="M14 46V18l18 16 18-16v28" fill="none" stroke="#ff3d57" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      <span>MOV<b>PICK</b></span>
+    </a>
+    <nav class="nav-links" id="navLinks" aria-label="주요 메뉴">
+      <a href="#videos">영상</a>
+      <a href="#project">프로젝트</a>
+      <a href="#screens">화면</a>
+      <a href="#architecture">아키텍처</a>
+      <a href="#troubleshooting">문제 해결</a>
+      <a href="#team">팀 · 링크</a>
+    </nav>
+    <div class="nav-cta">
+      <a class="btn" href="https://github.com/fsclass-n/movpick" target="_blank" rel="noopener">GitHub</a>
+      <a class="btn primary" href="https://movpick.onrender.com" target="_blank" rel="noopener">라이브 서비스</a>
+    </div>
+    <button class="burger" id="burger" aria-label="메뉴 열기" aria-expanded="false" aria-controls="navLinks"><span></span><span></span><span></span></button>
+  </div>
+</header>
+
+<main id="top">
+  <!-- ======================================================= HERO -->
+  <section class="hero">
+    <div class="wrap hero-grid">
+      <div class="reveal">
+        <span class="kicker">RPA · REAL-TIME · PRIME SEAT</span>
+        <h1>MOV<b>PICK</b></h1>
+        <p class="tagline">명당 자리가 비는 순간,<br /><em>가장 먼저</em> 알려드려요</p>
+        <p class="desc">CGV · 메가박스 · 롯데시네마의 상영 시간표와 잔여석을 RPA로 자동 수집하고, 명당 자리를 점수로 고른 뒤,
+          취소표가 생기면 WebSocket으로 즉시 알려 주는 영화 예매 추천 플랫폼입니다. 팀 movpick의 세미 프로젝트입니다.</p>
+        <div class="hero-actions">
+          <a class="btn primary" href="#videos">▶ 10분 발표·시연 보기</a>
+          <a class="btn" href="https://movpick.onrender.com" target="_blank" rel="noopener">라이브 서비스</a>
+          <a class="btn" href="https://movpick-api.onrender.com/docs" target="_blank" rel="noopener">API 문서</a>
+        </div>
+        <div class="stats">
+          <div class="stat"><b>3사 · 6곳</b><span>CGV · 메가박스 · 롯데시네마</span></div>
+          <div class="stat"><b>30분</b><span>상영 시간표 자동 동기화</span></div>
+          <div class="stat"><b>4.7초</b><span>좌석 비움 → 알림 팝업 (E2E 실측)</span></div>
+          <div class="stat"><b>24</b><span>자동 테스트 (pytest)</span></div>
+        </div>
+      </div>
+      <div class="reveal" id="featured"></div>
+    </div>
+  </section>
+
+  <!-- ======================================================= VIDEOS -->
+  <section id="videos">
+    <div class="wrap">
+      <div class="reveal">
+        <span class="kicker">Video Showcase</span>
+        <h2 class="section-title">발표 · 시연 영상</h2>
+        <p class="lead">썸네일을 누르면 그 자리에서 바로 재생됩니다. 챕터 카드는 10분 본편의 해당 구간만 재생하고,
+          시연은 실제 운영 서비스(movpick.onrender.com)에서 일반 회원과 테스트 관리자 계정을 비교합니다.</p>
+      </div>
+      <div class="video-grid" id="videoGrid"></div>
+    </div>
+  </section>
+
+  <!-- ======================================================= PROJECT -->
+  <section id="project">
+    <div class="wrap">
+      <div class="reveal">
+        <span class="kicker">Project</span>
+        <h2 class="section-title">왜 만들었고, 무엇을 해결했나</h2>
+      </div>
+      <div class="two">
+        <article class="card box reveal">
+          <span class="kicker" style="color:var(--gold)">기획 의도</span>
+          <h3>명당 자리는 '새로고침'으로 잡는다?</h3>
+          <ul>
+            <li>명당 자리는 대부분 매진 뒤 <b>취소표</b>로 나오지만, 언제 나올지 알 수 없습니다.</li>
+            <li>상영 정보는 체인마다 다른 앱에 흩어져 있어 같은 영화를 세 번 검색해야 합니다.</li>
+            <li>목록은 잔여석 <b>숫자</b>만 보여 줘서, 그 자리가 명당인지는 예매 단계에서야 압니다.</li>
+          </ul>
+          <p style="margin-top:14px">→ 수집은 RPA가, 감시는 서버가 하고, 사용자는 <b style="color:var(--fg)">"명당 자리가 비었다"</b>는 알림만 받도록 설계했습니다.</p>
+        </article>
+        <article class="card box reveal">
+          <span class="kicker" style="color:var(--mint)">핵심 기능</span>
+          <h3>수집 → 판단 → 알림, 하나의 파이프라인</h3>
+          <ul>
+            <li><b style="color:var(--fg)">RPA 자동 동기화</b> — 30분 주기, 오늘·내일, 체인별 어댑터 · HTTP 우선 → Playwright 폴백</li>
+            <li><b style="color:var(--fg)">명당 점수 모델</b> — 스크린 기준 약 2/3 지점·중앙 열 거리 함수(NumPy), 상위 18% 하이라이트 · 히트맵</li>
+            <li><b style="color:var(--fg)">실시간 취소표 알림</b> — 새로 빈 좌석만 diff 감지 → 사용자별 WebSocket 팝업 · 웹훅(텔레그램·디스코드·이메일)</li>
+            <li><b style="color:var(--fg)">권한 분리</b> — 일반 회원 / 읽기 전용 테스트 관리자 / .env 실제 관리자, 서버가 403으로 강제</li>
+          </ul>
+        </article>
+      </div>
+      <div class="card box reveal" style="margin-top:18px">
+        <span class="kicker" style="color:var(--sky)">제작 과정</span>
+        <h3>4단계 진행 · 단계별 산출물과 진행일지로 기록</h3>
+        <div class="steps">
+          <div class="step"><b>기획 · 분석</b><span>문제 정의, 요구사항, 수집 대상 조사</span></div>
+          <div class="step"><b>설계</b><span>아키텍처, DB, 명당 점수 모델, 알림 흐름</span></div>
+          <div class="step"><b>구현</b><span>React · FastAPI · RPA · WebSocket, pytest 24개</span></div>
+          <div class="step"><b>배포</b><span>Docker · Render · Netlify · GitHub Actions CI</span></div>
+        </div>
+      </div>
+      <div class="three">
+        <article class="card box reveal"><div class="num">01</div><h3>실제 3사 데이터</h3>
+          <p>메가박스·롯데시네마는 서버가 직접, CGV는 국외 IP 차단 때문에 국내 원격 수집기가 토큰 인증 API로 보냅니다. 하루 약 450회차를 동기화합니다.</p></article>
+        <article class="card box reveal"><div class="num">02</div><h3>정직한 한계 표기</h3>
+          <p>영화관은 잔여석 '수'만 공개하므로 좌석 배치는 추정값이며, 화면과 영상에서 그렇게 밝힙니다. 실데이터가 있으면 모의 데이터와 섞지 않습니다.</p></article>
+        <article class="card box reveal"><div class="num">03</div><h3>검증 가능한 운영</h3>
+          <p><code>/health</code>가 배포 커밋 해시를 돌려주고, CI가 테스트 · 프런트 빌드 · Docker 이미지 기동을 확인한 뒤 배포합니다.</p></article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================================================= SCREENS -->
+  <section id="screens">
+    <div class="wrap">
+      <div class="reveal">
+        <span class="kicker">Screens</span>
+        <h2 class="section-title">실제 서비스 화면</h2>
+        <p class="lead">운영 서비스에서 캡처한 화면입니다. 누르면 크게 볼 수 있습니다.</p>
+      </div>
+      <div class="gallery" id="gallery"></div>
+    </div>
+  </section>
+
+  <!-- ======================================================= ARCHITECTURE -->
+  <section id="architecture">
+    <div class="wrap">
+      <div class="reveal">
+        <span class="kicker">Architecture</span>
+        <h2 class="section-title">아키텍처 & 기술 선택</h2>
+        <p class="lead">프런트 정적 CDN · API 컨테이너 · 클라우드 DB를 분리하고, 수집과 좌석 감시는 API 프로세스 안의 백그라운드 루프로 돌립니다.
+          원칙은 "가볍게 시도하고, 막히면 무거운 수단으로"입니다.</p>
+      </div>
+      <div class="arch reveal">
+        <div>
+          <div class="node tag-sky"><h4>사용자 브라우저</h4><p>React 19 · Vite · Tailwind v4<br />REST + WebSocket 클라이언트</p></div>
+          <div class="node"><h4>Netlify · Render Static</h4><p>스테이징 / 운영 프런트 독립 배포</p></div>
+          <div class="node tag-dash"><h4>국내 원격 수집기</h4><p>국외 IP 차단 체인(CGV) 대응<br /><code>rpa.runner --push</code> · Docker</p></div>
+        </div>
+        <div class="node server">
+          <h4>FastAPI · Render Docker · 단일 워커</h4>
+          <div class="grid">
+            <div><b>REST API</b><span>JWT · RBAC · Pydantic</span></div>
+            <div><b>WebSocket Hub</b><span>사용자별 푸시</span></div>
+            <div><b>Crawler Loop</b><span>asyncio · 30분</span></div>
+            <div><b>Seat Monitor</b><span>20초 · 변동 diff</span></div>
+            <div><b>Ingest API</b><span>토큰 · 상수 시간 비교</span></div>
+            <div><b>Notifier</b><span>웹훅 멀티 채널</span></div>
+          </div>
+          <p style="margin-top:12px">Playwright Chromium을 빌드 시점에 설치한 Docker 이미지 · <code>/health</code>로 배포 커밋 확인</p>
+        </div>
+        <div>
+          <div class="node tag-gold"><h4>RPA 어댑터</h4><p>CGV · 메가박스 · 롯데시네마 · Mock<br />Requests 우선 → Playwright 폴백</p></div>
+          <div class="node tag-mint"><h4>TiDB Cloud</h4><p>MySQL 호환 · TLS · 로컬과 운영 동일 DB<br />테스트는 임시 SQLite로 격리</p></div>
+          <div class="node"><h4>알림 채널</h4><p>WebSocket 팝업 · Telegram · Discord · Email</p></div>
+        </div>
+      </div>
+      <div class="stack" id="stack"></div>
+    </div>
+  </section>
+
+  <!-- ======================================================= TROUBLESHOOTING -->
+  <section id="troubleshooting">
+    <div class="wrap">
+      <div class="reveal">
+        <span class="kicker">Problem Solving</span>
+        <h2 class="section-title">문제 해결: 가설 → 검증 → 구조 전환</h2>
+        <p class="lead">실제 배포 환경에서 마주친 문제들입니다. 추측이 아니라 근거로 원인을 좁히고, 필요하면 코드가 아니라 구조를 바꿨습니다.</p>
+      </div>
+      <div class="trouble" id="trouble"></div>
+    </div>
+  </section>
+
+  <!-- ======================================================= TEAM & LINKS -->
+  <section id="team">
+    <div class="wrap">
+      <div class="reveal">
+        <span class="kicker">Team & Links</span>
+        <h2 class="section-title">팀 movpick</h2>
+      </div>
+      <div class="team" id="teamGrid"></div>
+      <div class="links" id="links"></div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>© 2026 Team movpick · 박미금 · 김모란 · 이오리 · 홍기흥</span>
+    <span>상영 정보와 잔여석은 각 영화관 공개 데이터를 RPA로 수집한 값이며, 좌석 단위 배치는 추정값입니다.</span>
+  </div>
+</footer>
+
+<button class="totop" id="totop" aria-label="맨 위로">↑</button>
+<dialog class="lightbox" id="lightbox"><img alt="" /><p></p></dialog>
+
+<script>
+/* =====================================================================
+   콘텐츠 데이터 — 영상·썸네일·화면을 바꾸려면 이 부분만 수정하세요.
+   src/poster 는 이 index.html 기준 상대 경로 또는 외부 URL 모두 가능합니다.
+   start/end(초)를 주면 같은 영상의 해당 구간만 재생합니다.
+   ===================================================================== */
+const FULL = "docs/video/movpick_final.mp4";
+
+const FEATURED = {
+  id: "full", title: "movpick 10분 발표 · 시연 (본편)", src: FULL, poster: "assets/thumbs/full.jpg",
+  desc: "PPT 발표 → 일반 회원 시연 → 읽기 전용 관리자 시연 → 운영 근거 → 클로징",
+  time: "10:00", badge: "FULL", chips: ["1080p · 30fps", "한국어 자막", "실제 운영 서비스 시연"],
+};
+
+const VIDEOS = [
+  { id: "hl", title: "60초 하이라이트", src: "docs/video/movpick_highlight.mp4", poster: "assets/thumbs/highlight.jpg",
+    desc: "좌석 맵 · 명당 히트맵 → 감시 등록 → 실시간 취소표 알림", time: "1:00", badge: "HIGHLIGHT", chips: ["WebSocket 실시간 알림"] },
+  { id: "ch1", title: "PPT 발표", src: FULL, poster: "assets/thumbs/ch1_ppt.jpg", start: 0, end: 196,
+    desc: "문제 정의 · 아키텍처 · 기술 선택 · RPA 파이프라인 · 명당 알고리즘 · CI/CD · 트러블슈팅", badge: "CH 1", chips: ["발표자료 1~14장"] },
+  { id: "ch2", title: "일반 회원 시연", src: FULL, poster: "assets/thumbs/ch2_member.jpg", start: 196, end: 388,
+    desc: "로그인(비밀번호 규칙) · 3사 통합 상영작 · 좌석 맵 · 명당 감시 · 실시간 취소표 알림 · /admin 차단", badge: "CH 2", chips: ["일반 회원 테스트 계정"] },
+  { id: "ch3", title: "관리자 시연 (읽기 전용)", src: FULL, poster: "assets/thumbs/ch3_admin.jpg", start: 388, end: 497,
+    desc: "크롤러 대시보드 · 수집 진단 · 실행/권한 변경 시 서버 403 거부", badge: "CH 3", chips: ["테스트 관리자 계정", "서버 권한 검사"] },
+  { id: "ch4", title: "계정 비교 · 운영 근거", src: FULL, poster: "assets/thumbs/ch4_evidence.jpg", start: 497, end: 553,
+    desc: "일반 회원 vs 테스트 관리자 vs 실제 관리자 · API 문서 · /health 배포 커밋 · GitHub Actions", badge: "CH 4", chips: ["RBAC"] },
+  { id: "ch5", title: "회고 · 마무리", src: FULL, poster: "assets/thumbs/ch5_closing.jpg", start: 553, end: 600,
+    desc: "한계와 다음 단계 · 서비스·코드·문서 링크", badge: "CH 5", chips: ["Next Step"] },
+];
+
+const SCREENS = [
+  { src: "assets/screens/login.jpg", title: "로그인", desc: "오늘 인기 1위 포스터 · 원클릭 테스트 계정 · 소셜 로그인", size: "wide" },
+  { src: "assets/screens/home.jpg", title: "상영작", desc: "3사 통합 시간표 · 잔여석 · 체인 필터", size: "wide" },
+  { src: "assets/screens/seat.jpg", title: "좌석 맵", desc: "명당 하이라이트 · 추천 좌석 · 감시 등록" },
+  { src: "assets/screens/heatmap.jpg", title: "명당 히트맵", desc: "점수 기반 색상 표시" },
+  { src: "assets/screens/popup.jpg", title: "취소표 알림", desc: "WebSocket 실시간 팝업 · 토스트" },
+  { src: "assets/screens/admin.jpg", title: "관리자 대시보드", desc: "크롤러 상태 · Plotly 리포트 · 읽기 전용 안내", size: "wide" },
+  { src: "assets/screens/admin_users.jpg", title: "회원 권한", desc: "일반 ⇄ 관리자 실시간 권한 변경", size: "wide" },
+  { src: "assets/screens/m_login.jpg", title: "모바일", desc: "로그인", size: "mobile" },
+  { src: "assets/screens/m_drawer.jpg", title: "모바일", desc: "Drawer 메뉴", size: "mobile" },
+  { src: "assets/screens/m_seat.jpg", title: "모바일", desc: "좌석 맵", size: "mobile" },
+  { src: "assets/screens/watch.jpg", title: "감시 등록", desc: "명당 자리 전체 감시", size: "wide" },
+];
+
+const STACK = [
+  { area: "FRONTEND", tech: "React 19 · Vite 6 · Tailwind v4", why: "좌석 맵·실시간 상태를 컴포넌트로, @theme 토큰으로 디자인 시스템 일원화" },
+  { area: "BACKEND", tech: "FastAPI · WebSocket · SQLAlchemy", why: "비동기·WebSocket 기본 지원, Pydantic 검증, Swagger 자동 문서" },
+  { area: "DATABASE", tech: "TiDB Cloud (MySQL 호환)", why: "로컬과 운영이 같은 DB → 환경 차이 제거, 테스트는 SQLite 격리" },
+  { area: "RPA", tech: "Requests → Playwright · BeautifulSoup4", why: "가벼운 HTTP 우선, WAF로 막히면 실제 브라우저 컨텍스트" },
+  { area: "DATA", tech: "NumPy · pandas · Plotly", why: "좌석 점수 벡터 연산, 판매 좌석 기준 인기 순위, 관리자 리포트" },
+  { area: "INFRA", tech: "Docker · Render · Netlify · GitHub Actions", why: "Chromium 빌드 타임 설치, 프런트/백 독립 배포, CI 품질 게이트" },
+];
+
+const TROUBLE = [
+  { title: "CGV 수집 차단 (HTTP 403)", desc: "로컬에서는 되던 수집이 배포 서버에서 막혔습니다. Cloudflare 응답의 cf-ray 접속 거점을 비교해 헤더가 아니라 국외 IP 차단임을 확인하고, 수집 위치와 수신 서버를 분리했습니다.",
+    flow: [["curl 403", "ng"], ["Playwright 로컬 성공", "ok"], ["Render 403", "ng"], ["ICN 통과 / PDX 차단", ""], ["원격 수집기 + Ingest API", "ok"]] },
+  { title: "녹화 영상의 시간 어긋남", desc: "발표 영상 제작 중 Playwright 기본 녹화가 실제 332초를 392초로 늘려 장면 경계가 밀렸습니다. Chrome 스크린캐스트 프레임을 타임스탬프와 함께 저장하는 방식으로 바꿔 깜박임 0건으로 맞췄습니다.",
+    flow: [["장면 내용 불일치", "ng"], ["영상/실제 시간 비교", ""], ["CDP 타임스탬프 프레임", "ok"]] },
+  { title: "OAuth · 정적 호스팅 운영 이슈", desc: "운영 BACKEND_URL이 localhost로 남아 redirect_uri_mismatch가 났고, 정적 호스팅에 SPA 리라이트가 없어 콜백이 404였습니다. 프록시 헤더를 반영한 요청 주소로 콜백을 만들고, 결과를 루트 경로로 받게 했습니다.",
+    flow: [["redirect_uri_mismatch", "ng"], ["요청 기반 콜백 URL", "ok"], ["SPA 404", "ng"], ["/#oauth_token 복귀", "ok"]] },
+  { title: "크롤링 데이터 정합성", desc: "롯데시네마 응답의 중복 회차가 UNIQUE 제약 위반을 일으켜 전체 수집이 멈췄고, DB 기본 시각이 UTC라 9시간 차이가 났습니다. 중복 제거와 체인 단위 실패 격리, 앱 로컬 시각과 컨테이너 TZ 고정으로 해결했습니다.",
+    flow: [["UNIQUE 위반 · 루프 중단", "ng"], ["중복 제거 + 체인 격리", "ok"], ["UTC/KST 9시간", "ng"], ["로컬 시각 + TZ 고정", "ok"]] },
+];
+
+const TEAM = [["박미금", "조장"], ["김모란", "팀원"], ["이오리", "팀원 · 발표"], ["홍기흥", "팀원"]];
+
+const LINKS = [
+  { label: "LIVE", title: "운영 서비스", url: "https://movpick.onrender.com", desc: "movpick.onrender.com · 테스트 계정 원클릭 로그인" },
+  { label: "STAGING", title: "스테이징", url: "https://movpick.netlify.app", desc: "movpick.netlify.app" },
+  { label: "API", title: "API 문서 (Swagger)", url: "https://movpick-api.onrender.com/docs", desc: "movpick-api.onrender.com/docs" },
+  { label: "CODE", title: "GitHub 저장소", url: "https://github.com/fsclass-n/movpick", desc: "github.com/fsclass-n/movpick" },
+  { label: "SLIDES", title: "발표자료 (16장)", url: "docs/프로젝트_발표자료.pptx", desc: "프로젝트_발표자료.pptx · 발표자 노트 포함" },
+  { label: "SCRIPT", title: "영상 대본 · 연출 가이드", url: "https://github.com/fsclass-n/movpick/blob/main/docs/video/%EC%98%81%EC%83%81_%EB%8C%80%EB%B3%B8_%EB%B0%8F_%EC%97%B0%EC%B6%9C%EA%B0%80%EC%9D%B4%EB%93%9C.md", desc: "장면별 시간 · 화면 · 대본 · 자막(SRT)" },
+];
+
+/* =====================================================================
+   렌더링
+   ===================================================================== */
+const $ = (sel, el = document) => el.querySelector(sel);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const mmss = (sec) => `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, "0")}`;
+const PLAY_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg>';
+
+function videoCard(v, featured = false) {
+  const time = v.time || (v.end != null ? `${mmss(v.start || 0)} – ${mmss(v.end)}` : "");
+  return `<article class="vcard ${featured ? "featured" : "reveal"}" data-id="${v.id}">
+    <div class="media">
+      <button class="thumb" type="button" aria-label="${esc(v.title)} 재생">
+        <img src="${esc(v.poster)}" alt="${esc(v.title)} 썸네일" loading="${featured ? "eager" : "lazy"}" />
+        <span class="badge">${esc(v.badge || "")}</span>
+        ${time ? `<span class="badge time">${esc(time)}</span>` : ""}
+        <span class="play">${PLAY_ICON}</span>
+        <span class="thumb-caption"><strong>${esc(v.title)}</strong>${featured ? `<small>${esc(v.desc)}</small>` : ""}</span>
+      </button>
+      <button class="close" type="button" aria-label="재생 종료하고 썸네일로">✕</button>
+      <div class="end" role="group" aria-label="재생 완료">
+        <p>${v.end != null ? "이 챕터가 끝났습니다" : "영상이 끝났습니다"}</p>
+        <div class="row">
+          <button class="btn primary" data-act="replay" type="button">↻ 다시 보기</button>
+          <button class="btn" data-act="next" type="button" hidden>다음 챕터 →</button>
+          <button class="btn" data-act="thumb" type="button">썸네일로</button>
+        </div>
+      </div>
+    </div>
+    ${featured ? "" : `<div class="vbody"><h3>${esc(v.title)}</h3><p>${esc(v.desc)}</p>
+      <div class="chips">${(v.chips || []).map((c) => `<span class="chip">${esc(c)}</span>`).join("")}</div></div>`}
+  </article>`;
+}
+
+const ALL = [FEATURED, ...VIDEOS];
+$("#featured").innerHTML = videoCard(FEATURED, true);
+$("#videoGrid").innerHTML = VIDEOS.map((v) => videoCard(v)).join("");
+
+/* ---- 썸네일 자리에서 바로 재생 (페이지 이동·모달 없음) ---- */
+let active = null;
+
+function stop(card, keepPlayer = false) {
+  const media = $(".media", card);
+  const video = $("video", media);
+  media.classList.remove("ended");
+  if (video) video.pause();
+  if (!keepPlayer) {
+    media.classList.remove("playing");
+    if (video) setTimeout(() => { if (!media.classList.contains("playing")) video.remove(); }, 460);
+  }
+  if (active === card && !keepPlayer) active = null;
+}
+
+function play(card, item, from) {
+  card.dataset.done = "";
+  if (active && active !== card) stop(active);
+  active = card;
+  const media = $(".media", card);
+  media.classList.remove("ended");
+  let video = $("video", media);
+  const start = from ?? item.start ?? 0;
+  if (!video) {
+    video = document.createElement("video");
+    Object.assign(video, { controls: true, playsInline: true, preload: "auto", poster: item.poster });
+    video.setAttribute("playsinline", "");
+    video.setAttribute("aria-label", item.title);
+    video.src = start ? `${item.src}#t=${start}` : item.src;
+    video.addEventListener("loadedmetadata", () => { if (Math.abs(video.currentTime - start) > 0.5) video.currentTime = start; }, { once: true });
+    video.addEventListener("timeupdate", () => { if (item.end != null && video.currentTime >= item.end) finish(card, item, video); });
+    video.addEventListener("ended", () => finish(card, item, video));
+    media.insertBefore(video, $(".close", media));
+  } else {
+    video.currentTime = start;
+  }
+  requestAnimationFrame(() => media.classList.add("playing"));
+  const p = video.play();
+  if (p && p.catch) p.catch(() => { video.muted = true; video.play().catch(() => {}); });
+}
+
+function finish(card, item, video) {
+  if (card.dataset.done === "1") return;
+  card.dataset.done = "1";
+  video.pause();
+  const media = $(".media", card);
+  const idx = VIDEOS.findIndex((v) => v.id === item.id);
+  const next = idx >= 0 && VIDEOS[idx + 1] && VIDEOS[idx + 1].start != null ? VIDEOS[idx + 1] : null;
+  const nextBtn = $("[data-act=next]", media);
+  nextBtn.hidden = !next;
+  nextBtn.onclick = () => { stop(card); const nc = document.querySelector(`[data-id="${next.id}"]`); nc.scrollIntoView({ behavior: "smooth", block: "center" }); play(nc, next); };
+  media.classList.add("ended");
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+}
+
+document.querySelectorAll(".vcard").forEach((card) => {
+  const item = ALL.find((v) => v.id === card.dataset.id);
+  $(".thumb", card).addEventListener("click", () => { card.dataset.done = ""; play(card, item); });
+  $(".close", card).addEventListener("click", () => stop(card));
+  $("[data-act=replay]", card).addEventListener("click", () => { card.dataset.done = ""; play(card, item, item.start || 0); });
+  $("[data-act=thumb]", card).addEventListener("click", () => stop(card));
+});
+
+/* ---- 나머지 섹션 ---- */
+$("#gallery").innerHTML = SCREENS.map((s, i) => `<button class="shot reveal ${s.size || ""}" type="button" data-i="${i}">
+  <img src="${esc(s.src)}" alt="${esc(s.title)} — ${esc(s.desc)}" loading="lazy" />
+  <figcaption><b>${esc(s.title)}</b>${esc(s.desc)}</figcaption></button>`).join("");
+const lb = $("#lightbox");
+$("#gallery").addEventListener("click", (e) => {
+  const btn = e.target.closest(".shot"); if (!btn) return;
+  const s = SCREENS[+btn.dataset.i];
+  $("img", lb).src = s.src; $("img", lb).alt = s.title; $("p", lb).textContent = `${s.title} — ${s.desc}`;
+  lb.showModal();
+});
+lb.addEventListener("click", () => lb.close());
+
+$("#stack").innerHTML = STACK.map((s) => `<div class="card box reveal"><h4>${esc(s.area)}</h4><p>${esc(s.tech)}</p><small>${esc(s.why)}</small></div>`).join("");
+$("#trouble").innerHTML = TROUBLE.map((t, i) => `<article class="card box reveal"><span class="kicker">CASE ${String(i + 1).padStart(2, "0")}</span>
+  <h3>${esc(t.title)}</h3><p>${esc(t.desc)}</p>
+  <div class="flow">${t.flow.map(([x, k]) => `<span class="${k}">${esc(x)}</span>`).join("<i>→</i>")}</div></article>`).join("");
+$("#teamGrid").innerHTML = TEAM.map(([n, r]) => `<div class="card member reveal"><div class="avatar">${esc(n[0])}</div><b>${esc(n)}</b><span>${esc(r)}</span></div>`).join("");
+$("#links").innerHTML = LINKS.map((l) => `<a class="card link reveal" href="${esc(l.url)}" ${l.url.startsWith("http") ? 'target="_blank" rel="noopener"' : "download"}>
+  <em>${esc(l.label)}</em><b>${esc(l.title)}</b><span>${esc(l.desc)}</span></a>`).join("");
+
+/* ---- 내비게이션 · 스크롤 효과 ---- */
+const nav = $("#nav"), burger = $("#burger"), totop = $("#totop");
+burger.addEventListener("click", () => {
+  const open = nav.classList.toggle("open");
+  burger.setAttribute("aria-expanded", open); burger.setAttribute("aria-label", open ? "메뉴 닫기" : "메뉴 열기");
+});
+document.querySelectorAll(".nav-links a").forEach((a) => a.addEventListener("click", () => { nav.classList.remove("open"); burger.setAttribute("aria-expanded", "false"); }));
+const onScroll = () => { nav.classList.toggle("scrolled", scrollY > 10); totop.classList.toggle("show", scrollY > 600); };
+addEventListener("scroll", onScroll, { passive: true }); onScroll();
+totop.addEventListener("click", () => scrollTo({ top: 0, behavior: "smooth" }));
+
+const io = new IntersectionObserver((entries) => entries.forEach((e) => { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } }), { threshold: 0.12 });
+document.querySelectorAll(".reveal").forEach((el) => io.observe(el));
+const sections = [...document.querySelectorAll("main section[id]")];
+const links = [...document.querySelectorAll(".nav-links a")];
+const spy = new IntersectionObserver((entries) => entries.forEach((e) => {
+  if (e.isIntersecting) links.forEach((a) => a.classList.toggle("active", a.getAttribute("href") === `#${e.target.id}`));
+}), { rootMargin: "-45% 0px -50% 0px" });
+sections.forEach((s) => spy.observe(s));
+</script>
+</body>
+</html>

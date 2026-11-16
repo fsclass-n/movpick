@@ -1,9 +1,11 @@
 name: GitHub Pages
 
+# 루트 index.html(포트폴리오) + 영상·썸네일·화면 자료를 그대로 배포
+# (브랜치 배포 방식이어도 루트 index.html 과 .nojekyll 로 같은 사이트가 서비스됨)
 on:
   push:
     branches: [main]
-    paths: ["pages/**", ".github/workflows/pages.yml"]
+    paths: ["index.html", "assets/**", "docs/video/**", "docs/*.pptx", ".github/workflows/pages.yml"]
   workflow_dispatch:
 
 permissions:
@@ -24,8 +26,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
+      - name: Stage site
+        run: |
+          mkdir -p _site/docs/video _site/frontend/public
+          cp index.html .nojekyll _site/
+          cp -r assets _site/
+          cp docs/video/movpick_final.mp4 docs/video/movpick_highlight.mp4 docs/video/movpick_final.srt _site/docs/video/
+          cp docs/*.pptx _site/docs/
+          cp frontend/public/favicon.svg _site/frontend/public/
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: pages
+          path: _site
       - id: deployment
         uses: actions/deploy-pages@v4

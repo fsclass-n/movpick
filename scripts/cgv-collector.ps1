@@ -1,4 +1,4 @@
-# movpick 원격 CGV 수집기 (국내 PC에서 실행)
+﻿# movpick 원격 CGV 수집기 (국내 PC에서 실행)
 #  - CGV는 해외 데이터센터 IP(Render)를 차단하므로 국내 PC에서 수집 후 백엔드로 전송합니다.
 #  - 루트 .env 에 RPA_INGEST_TOKEN (Render 와 동일 값) 이 필요합니다.
 #  - 작업 스케줄러 등록(30분 주기):
@@ -9,6 +9,8 @@ param(
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 $env:PYTHONIOENCODING = "utf-8"
+# 작업 스케줄러(콘솔 없음) 환경에서도 python 출력(UTF-8)을 올바르게 디코딩
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $log = Join-Path $root "rpa\output\cgv-collector.log"
 New-Item -ItemType Directory -Force -Path (Split-Path $log) | Out-Null
 Push-Location $root

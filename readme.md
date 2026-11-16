@@ -14,6 +14,23 @@ RPA 중심의 자동화 및 효율화
 | Frontend Production (Render) | https://movpick.onrender.com |
 | Backend API (Render) | https://movpick-api.onrender.com (`/docs`, `/health`) |
 
+## 발표·시연 영상 (10분)
+
+[![movpick 10분 발표·시연](docs/video/video-thumbnail.png)](https://github.com/fsclass-n/movpick/releases/latest/download/movpick_final.mp4)
+
+- 본편 `movpick_final.mp4` (10:00 · 1920×1080 · 30fps · H.264 + AAC · 약 66MB) — GitHub Release 첨부 파일
+- 60초 하이라이트 `movpick_highlight.mp4` (좌석 맵 → 감시 등록 → 실시간 취소표 알림) · 자막 [`docs/video/movpick_final.srt`](docs/video/movpick_final.srt)
+- 대본·연출 가이드: [`docs/video/영상_대본_및_연출가이드.md`](docs/video/영상_대본_및_연출가이드.md) · 제작 도구: `docs/video/tools/`
+- 시연은 운영 서비스(movpick.onrender.com)에서 **일반 회원 / 테스트 관리자(읽기 전용)** 두 테스트 계정을 비교합니다. 내레이션은 신경망 합성 음성입니다.
+
+| 시간 | 내용 |
+|---|---|
+| 00:00 | PPT 발표 1~14장 — 문제 정의 · 아키텍처 · 기술 선택 · RPA · 명당 알고리즘 · 알림 · 권한 · CI/CD · 트러블슈팅 |
+| 03:16 | 일반 회원 — 로그인(비밀번호 규칙) · 3사 통합 상영작 · 좌석 맵/히트맵 · 명당 감시 · **실시간 취소표 알림** · `/admin` 차단 |
+| 06:28 | 관리자(읽기 전용) — 크롤러 대시보드 · 수집 진단 · 실행/권한 변경 시 **서버 403** |
+| 08:17 | 계정 비교 · 운영 근거(`/docs` · `/health` 커밋 · GitHub Actions) |
+| 09:13 | 클로징 — 한계와 다음 단계 · 링크 |
+
 ## 디렉터리 구조
 
 ```

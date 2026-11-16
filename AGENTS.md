@@ -20,3 +20,9 @@
 - Timestamps are naive local time (`datetime.now`); Docker sets `TZ=Asia/Seoul`.
 - Backend must run with a single worker (crawler/monitor loops live in-process).
 - Tailwind v4: custom reusable classes are defined with `@utility` in `frontend/src/index.css`.
+
+## Video (docs/video)
+- Single source of truth for timing/narration: `docs/video/tools/video_scenes.py` (total must be exactly 600s).
+- Pipeline: `tts.py` → `export_slides.ps1` (PowerShell scripts need UTF-8 BOM for Korean paths) → `record_demo.py` → `compose.py --rebuild` → `check_final.py` → `gen_guide.py`.
+- Demo is recorded with CDP screencast frames (timestamped); Playwright's built-in video drifts vs wall clock and must not be used for cuts.
+- ffmpeg comes from winget (Gyan.FFmpeg); tools locate it automatically. Outputs `*.mp4` and `build/` are git-ignored (upload MP4 to a GitHub Release).

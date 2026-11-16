@@ -2,11 +2,11 @@ import logging
 import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Literal
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
 
 import httpx
 import jwt
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -22,6 +22,7 @@ from ..security import (
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 log = logging.getLogger("movpick.auth")
+LOCAL_HOSTS = {"localhost", "127.0.0.1"}
 
 
 OAUTH = {
@@ -133,8 +134,13 @@ def _client(provider: str) -> tuple[str, str]:
     return getattr(settings, f"{provider}_client_id"), getattr(settings, f"{provider}_client_secret")
 
 
-def _redirect_uri(provider: str) -> str:
-    return f"{settings.backend_url}/api/auth/oauth/{provider}/callback"
+def _redirect_uri(provider: str, request: Request) -> str:
+    """OAuth 콜백 URL. BACKEND_URL 이 비었거나 localhost 인데 실제 요청 호스트가 다르면(배포 환경 설정 누락)
+    요청 기준 주소(프록시 헤더 반영)를 사용해 redirect_uri_mismatch 를 방지한다."""
+    base = settings.backend_url
+    if not base or (urlsplit(base).hostname in LOCAL_HOSTS and request.url.hostname not in LOCAL_HOSTS):
+        base = str(request.base_url).rstrip("/")
+    return f"{base}/api/auth/oauth/{provider}/callback"
 
 
 def _safe_origin(origin: str | None) -> str:
@@ -148,7 +154,7 @@ def providers():
 
 
 @router.get("/oauth/{provider}/login")
-def oauth_login(provider: Provider, redirect: str | None = Query(None)):
+def oauth_login(provider: Provider, request: Request, redirect: str | None = Query(None)):
     client_id, _ = _client(provider)
     if not client_id:
         raise HTTPException(501, f"{provider} OAuth 키가 설정되지 않았습니다.")
@@ -157,17 +163,17 @@ def oauth_login(provider: Provider, redirect: str | None = Query(None)):
          "exp": datetime.now(timezone.utc) + timedelta(minutes=10)},
         settings.secret_key, algorithm=ALGORITHM,
     )
-    params = {"client_id": client_id, "redirect_uri": _redirect_uri(provider), "response_type": "code", "state": state}
+    params = {"client_id": client_id, "redirect_uri": _redirect_uri(provider, request), "response_type": "code", "state": state}
     if OAUTH[provider]["scope"]:
         params["scope"] = OAUTH[provider]["scope"]
     return RedirectResponse(f"{OAUTH[provider]['authorize']}?{urlencode(params)}")
 
 
-async def _fetch_profile(provider: str, code: str, state: str) -> tuple[str, str, str | None]:
+async def _fetch_profile(provider: str, code: str, state: str, redirect_uri: str) -> tuple[str, str, str | None]:
     """(provider_id, name, email)"""
     client_id, client_secret = _client(provider)
     data = {"grant_type": "authorization_code", "client_id": client_id, "client_secret": client_secret,
-            "code": code, "redirect_uri": _redirect_uri(provider), "state": state}
+            "code": code, "redirect_uri": redirect_uri, "state": state}
     async with httpx.AsyncClient(timeout=10) as c:
         tok = (await c.post(OAUTH[provider]["token"], data=data, headers={"Accept": "application/json"})).json()
         access = tok.get("access_token")
@@ -184,7 +190,7 @@ async def _fetch_profile(provider: str, code: str, state: str) -> tuple[str, str
 
 
 @router.get("/oauth/{provider}/callback")
-async def oauth_callback(provider: Provider, code: str | None = None, state: str = "", error: str | None = None,
+async def oauth_callback(provider: Provider, request: Request, code: str | None = None, state: str = "", error: str | None = None,
                          db: Session = Depends(get_db)):
     try:
         origin = _safe_origin(jwt.decode(state, settings.secret_key, algorithms=[ALGORITHM]).get("origin"))
@@ -193,7 +199,7 @@ async def oauth_callback(provider: Provider, code: str | None = None, state: str
     if error or not code:
         return RedirectResponse(f"{origin}/oauth/callback#error={error or 'cancelled'}")
 
-    pid, name, email = await _fetch_profile(provider, code, state)
+    pid, name, email = await _fetch_profile(provider, code, state, _redirect_uri(provider, request))
     user = db.scalar(select(User).where(User.provider == provider, User.provider_id == pid))
     if not user and email:
         user = db.scalar(select(User).where(User.email == email.lower()))

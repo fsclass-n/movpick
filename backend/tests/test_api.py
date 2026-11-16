@@ -225,3 +225,20 @@ def test_mock_chain_replaces_real_and_rejects_ingest(client, monkeypatch):
             "start_at": f"{day.isoformat()}T20:00:00", "total_seats": 10, "available_seats": 5}
     res = client.post("/api/rpa/ingest", json={"chain": "cgv", "date": day.isoformat(), "items": [item]}, headers={"X-RPA-Token": "t"})
     assert res.status_code == 409
+
+
+def test_oauth_redirect_uri_follows_request_host(client, monkeypatch):
+    from urllib.parse import parse_qs, urlsplit
+    from backend.app.routers import auth as auth_mod
+
+    def redirect_uri(**cfg):
+        monkeypatch.setattr(auth_mod, "settings", replace(auth_mod.settings, google_client_id="cid", **cfg))
+        res = client.get("/api/auth/oauth/google/login", params={"redirect": "http://localhost:5173"}, follow_redirects=False)
+        assert res.status_code == 307
+        return parse_qs(urlsplit(res.headers["location"]).query)["redirect_uri"][0]
+
+    # 배포 환경에 BACKEND_URL=localhost 가 잘못 남아 있어도 실제 요청 호스트 기준으로 생성
+    assert redirect_uri(backend_url="http://localhost:8000") == "http://testserver/api/auth/oauth/google/callback"
+    assert redirect_uri(backend_url="") == "http://testserver/api/auth/oauth/google/callback"
+    # 명시적으로 지정한 공개 주소는 그대로 사용
+    assert redirect_uri(backend_url="https://api.example.com") == "https://api.example.com/api/auth/oauth/google/callback"

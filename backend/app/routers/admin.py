@@ -63,8 +63,13 @@ async def change_role(user_id: int, body: RoleIn, admin: User = Depends(require_
 
 # ---------------------------------------------------------------- crawler
 @router.get("/crawler")
-def crawler_status():
-    return crawler.status()
+def crawler_status(db: Session = Depends(get_db)):
+    status = crawler.status()
+    # 원격 수집기 마지막 수신 시각은 재배포 후에도 유지되도록 crawl_logs 에서 조회
+    rows = db.execute(select(CrawlLog.chain, func.max(CrawlLog.started_at)).where(CrawlLog.trigger == "remote")
+                      .group_by(CrawlLog.chain)).all()
+    status["remote"] = {c: {"at": at, "collector": "remote", **status["remote"].get(c, {})} for c, at in rows} | status["remote"]
+    return status
 
 
 @router.put("/crawler/config", dependencies=[Depends(require_admin_write)])

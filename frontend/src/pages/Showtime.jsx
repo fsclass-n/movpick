@@ -7,12 +7,12 @@ import {
 import { faDiscord, faTelegram } from '@fortawesome/free-brands-svg-icons'
 import SeatMap from '../components/SeatMap'
 import { Spinner } from '../components/Guards'
+import Poster from '../components/Poster'
 import { useAuth } from '../context/AuthContext'
 import { useRealtimeEvent } from '../context/RealtimeContext'
 import { useToast } from '../context/ToastContext'
 import { api } from '../lib/api'
 import { CHAINS, fmtDateTime, fmtTime } from '../lib/format'
-import { Poster } from './Home'
 
 const CHANNELS = [
   { id: 'web', label: '웹 푸시', icon: faGlobe },

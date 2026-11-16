@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
-  faArrowsRotate, faCircleCheck, faCircleNotch, faCircleXmark, faClock, faDatabase, faMagnifyingGlass, faPlay, faRobot,
-  faTowerBroadcast, faUserShield, faUsers,
+  faArrowsRotate, faCircleCheck, faCircleNotch, faCircleXmark, faClock, faDatabase, faEye, faMagnifyingGlass, faPlay, faRobot,
+  faStethoscope, faTowerBroadcast, faUserShield, faUsers,
 } from '@fortawesome/free-solid-svg-icons'
 import { Spinner } from '../components/Guards'
 import { useAuth } from '../context/AuthContext'
@@ -37,8 +37,12 @@ function StatusBadge({ status, source }) {
   )
 }
 
+const RO_TITLE = '테스트 관리자는 읽기 전용입니다'
+
 function CrawlerTab() {
   const toast = useToast()
+  const { isReadOnly: ro } = useAuth()
+  const [probe, setProbe] = useState(null)
   const [status, setStatus] = useState(null)
   const [summary, setSummary] = useState(null)
   const [logs, setLogs] = useState([])
@@ -75,6 +79,11 @@ function CrawlerTab() {
       setStatus(await api('/api/admin/crawler/config', { method: 'PUT', body: { interval_minutes: Number(interval), enabled } }))
       toast.success('크롤링 스케줄을 저장했습니다.')
     } catch (e) { toast.error(e.message) }
+  }
+
+  const runProbe = async (chain) => {
+    setProbe({ chain, running: true })
+    try { setProbe(await api('/api/admin/crawler/probe', { method: 'POST', query: { chain } })) } catch (e) { setProbe(null); toast.error(e.message) }
   }
 
   if (!status) return <Spinner />
@@ -115,16 +124,32 @@ function CrawlerTab() {
           <div className="mt-5 flex items-end gap-2 border-t border-line pt-4">
             <label className="flex-1 text-xs text-muted">
               <FontAwesomeIcon icon={faClock} className="mr-1" />크롤링 주기(분)
-              <input type="number" min={5} max={1440} value={interval} onChange={(e) => setIntervalMin(e.target.value)} className="input mt-1 py-2" />
+              <input type="number" min={5} max={1440} value={interval} disabled={ro} onChange={(e) => setIntervalMin(e.target.value)} className="input mt-1 py-2 disabled:opacity-50" />
             </label>
-            <button onClick={() => saveConfig()} className="btn-ghost">저장</button>
-            <button onClick={() => saveConfig(!status.enabled)} className="btn-ghost">{status.enabled ? '일시정지' : '재개'}</button>
+            <button onClick={() => saveConfig()} disabled={ro} title={ro ? RO_TITLE : ''} className="btn-ghost">저장</button>
+            <button onClick={() => saveConfig(!status.enabled)} disabled={ro} title={ro ? RO_TITLE : ''} className="btn-ghost">{status.enabled ? '일시정지' : '재개'}</button>
           </div>
           <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <button onClick={() => run()} disabled={status.running} className="btn-primary col-span-2 sm:col-span-1"><FontAwesomeIcon icon={faPlay} /> 전체</button>
+            <button onClick={() => run()} disabled={status.running || ro} title={ro ? RO_TITLE : ''} className="btn-primary col-span-2 sm:col-span-1"><FontAwesomeIcon icon={faPlay} /> 전체</button>
             {status.chains.map((c) => (
-              <button key={c} onClick={() => run(c)} disabled={status.running} className="btn-ghost text-xs">{CHAINS[c]?.label}</button>
+              <button key={c} onClick={() => run(c)} disabled={status.running || ro} title={ro ? RO_TITLE : ''} className="btn-ghost text-xs">{CHAINS[c]?.label}</button>
             ))}
+          </div>
+          <div className="mt-4 rounded-xl border border-line bg-surface-2/60 p-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs font-semibold"><FontAwesomeIcon icon={faStethoscope} className="mr-1.5 text-sky" />수집 진단 <span className="font-normal text-muted">(서버에서 실제 사이트 접속 테스트 · 저장 안 함)</span></p>
+              <div className="flex gap-1.5">
+                {status.chains.map((c) => (
+                  <button key={c} onClick={() => runProbe(c)} disabled={probe?.running} className="chip py-1 text-muted hover:text-fg">{CHAINS[c]?.label}</button>
+                ))}
+              </div>
+            </div>
+            {probe && (
+              <p className={`mt-2 text-xs ${probe.running ? 'text-muted' : probe.ok ? 'text-mint' : 'text-accent'}`}>
+                {probe.running ? <><FontAwesomeIcon icon={faCircleNotch} spin /> {CHAINS[probe.chain]?.label} 접속 테스트 중…</>
+                  : `${CHAINS[probe.chain]?.label}: ${probe.ok ? `성공 · ${probe.items}건 · ${probe.via} · ${probe.duration_ms}ms` : probe.message}`}
+              </p>
+            )}
           </div>
           {status.last_results?.length > 0 && (
             <ul className="mt-4 space-y-1.5 text-xs">
@@ -179,7 +204,7 @@ function CrawlerTab() {
 }
 
 function UsersTab() {
-  const { user: me } = useAuth()
+  const { user: me, isReadOnly: ro } = useAuth()
   const toast = useToast()
   const [users, setUsers] = useState(null)
   const [q, setQ] = useState('')
@@ -221,7 +246,7 @@ function UsersTab() {
               </div>
               <div className="flex rounded-xl border border-line bg-surface-2 p-1 text-xs" role="radiogroup" aria-label={`${u.name} 권한`}>
                 {[['user', '일반 사용자'], ['admin', '관리자']].map(([r, label]) => (
-                  <button key={r} role="radio" aria-checked={u.role === r} disabled={pending === u.id || u.role === r || (u.id === me.id && r === 'user')}
+                  <button key={r} role="radio" aria-checked={u.role === r} title={ro ? RO_TITLE : ''} disabled={ro || pending === u.id || u.role === r || (u.id === me.id && r === 'user')}
                     onClick={() => changeRole(u, r)}
                     className={`rounded-lg px-3 py-1.5 font-semibold transition disabled:cursor-default ${u.role === r ? (r === 'admin' ? 'bg-gold text-ink' : 'bg-fg text-ink') : 'text-muted hover:text-fg'}`}>
                     {pending === u.id && u.role !== r ? <FontAwesomeIcon icon={faCircleNotch} spin /> : label}
@@ -238,10 +263,17 @@ function UsersTab() {
 
 export default function Admin() {
   const [tab, setTab] = useState('crawler')
+  const { isReadOnly } = useAuth()
   return (
     <div className="animate-fade-up">
       <p className="text-xs font-semibold uppercase tracking-[0.35em] text-gold"><FontAwesomeIcon icon={faUserShield} className="mr-1.5" />ADMIN CONSOLE</p>
       <h1 className="title-ko mt-2 text-3xl">관리자 대시보드</h1>
+      {isReadOnly && (
+        <div className="mt-4 flex items-start gap-3 rounded-2xl border border-gold/40 bg-gold-soft px-4 py-3 text-sm" role="note">
+          <FontAwesomeIcon icon={faEye} className="mt-0.5 text-gold" />
+          <p><span className="font-semibold text-gold">읽기 전용 모드</span> · 테스트 관리자 계정은 대시보드와 로그 조회만 가능하며, 크롤러 실행·설정 변경·회원 권한 변경은 할 수 없습니다.</p>
+        </div>
+      )}
       <div className="mt-6 flex gap-2 border-b border-line" role="tablist">
         {TABS.map((t) => (
           <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)}

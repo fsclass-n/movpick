@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faBolt, faChevronDown, faCouch, faFilm, faLocationDot, faMagnifyingGlass, faRotate } from '@fortawesome/free-solid-svg-icons'
 import { Spinner } from '../components/Guards'
+import Poster from '../components/Poster'
 import { useRealtimeEvent } from '../context/RealtimeContext'
 import { useToast } from '../context/ToastContext'
 import { api } from '../lib/api'
@@ -13,16 +14,6 @@ const DAYS = [0, 1].map((offset) => {
   d.setDate(d.getDate() + offset)
   return { offset, param: toDateParam(d), label: offset === 0 ? '오늘' : '내일', sub: `${d.getMonth() + 1}.${d.getDate()}` }
 })
-
-export function Poster({ url, title, className = '' }) {
-  const [err, setErr] = useState(false)
-  if (url && !err) return <img src={url} alt={`${title} 포스터`} loading="lazy" onError={() => setErr(true)} className={`object-cover ${className}`} />
-  return (
-    <div className={`grid place-items-center bg-gradient-to-br from-accent/30 via-surface-2 to-gold/20 ${className}`}>
-      <span className="title-ko px-2 text-center text-lg text-fg/80">{title.slice(0, 6)}</span>
-    </div>
-  )
-}
 
 function SeatPill({ st }) {
   const ratio = st.available_seats / Math.max(1, st.total_seats)

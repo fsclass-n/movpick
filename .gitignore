@@ -26,3 +26,6 @@ playwright-report/
 Thumbs.db
 .vscode/
 .idea/
+
+# 발표자료 캡처 (docs/tools/capture_screens.py 로 재생성)
+docs/tools/screens/

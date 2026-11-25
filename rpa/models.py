@@ -1,6 +1,9 @@
 from dataclasses import asdict, dataclass, field
 from datetime import date, datetime
 
+# 수집 대상 지역 코드 → 표시명 (프런트엔드 format.js 의 REGIONS 와 동일 값 유지)
+REGIONS = {"seoul": "서울", "gyeonggi": "경기", "incheon": "인천"}
+
 
 @dataclass
 class ShowtimeData:
@@ -16,6 +19,7 @@ class ShowtimeData:
     rating: str | None = None
     booking_url: str | None = None
     poster_url: str | None = None
+    region: str | None = None  # REGIONS 키 (seoul/gyeonggi/incheon)
     source: str = "real"
     extra: dict = field(default_factory=dict)
 

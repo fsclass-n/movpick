@@ -6,6 +6,7 @@ from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from rpa import seatmap
+from rpa.models import REGIONS
 from rpa.service import CHAIN_LABELS
 
 from ..db import get_db
@@ -26,10 +27,27 @@ def chains():
     return [{"id": k, "label": v} for k, v in CHAIN_LABELS.items()]
 
 
+@router.get("/regions")
+def regions():
+    return [{"id": k, "label": v} for k, v in REGIONS.items()]
+
+
+@router.get("/theaters")
+def theaters(db: Session = Depends(get_db)):
+    """현재 상영표가 있는 극장 목록 (체인·지역 필터 옵션용)"""
+    rows = db.execute(
+        select(Showtime.chain, Showtime.theater, Showtime.region)
+        .where(Showtime.start_at >= datetime.now() - timedelta(days=1))
+        .distinct().order_by(Showtime.chain, Showtime.theater)
+    ).all()
+    return [{"chain": c, "theater": t, "region": r} for c, t, r in rows]
+
+
 @router.get("/showtimes", response_model=list[ShowtimeOut])
 def list_showtimes(
     day: date | None = Query(None, alias="date"),
     chain: str | None = None,
+    region: str | None = None,
     q: str | None = Query(None, max_length=50),
     theater: str | None = None,
     upcoming: bool = True,
@@ -41,6 +59,8 @@ def list_showtimes(
         stmt = stmt.where(Showtime.start_at > datetime.now() - timedelta(minutes=10))
     if chain:
         stmt = stmt.where(Showtime.chain == chain)
+    if region:
+        stmt = stmt.where(Showtime.region == region)
     if theater:
         stmt = stmt.where(Showtime.theater == theater)
     if q:

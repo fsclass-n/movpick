@@ -131,6 +131,25 @@ def test_showtimes_seats_watch_and_alert(client, monkeypatch):
     assert any(w["showtime_id"] == sid for w in client.get("/api/watches", headers=h).json())
 
 
+def test_showtimes_region_and_theater_filters(client):
+    day = date.today() + timedelta(days=1)
+    persist(crawl_chain("megabox", day, "mock"), "test")
+    all_shows = client.get("/api/showtimes", params={"date": day.isoformat()}).json()
+    assert all_shows and all(s["region"] for s in all_shows)
+
+    seoul = client.get("/api/showtimes", params={"date": day.isoformat(), "region": "seoul"}).json()
+    assert seoul and all(s["region"] == "seoul" for s in seoul) and len(seoul) < len(all_shows)
+
+    theaters = client.get("/api/theaters").json()
+    assert any(t["region"] == "incheon" for t in theaters)
+    assert client.get("/api/regions").json() == [
+        {"id": "seoul", "label": "서울"}, {"id": "gyeonggi", "label": "경기"}, {"id": "incheon", "label": "인천"}]
+
+    name = next(t["theater"] for t in theaters if t["region"] == "incheon")
+    one = client.get("/api/showtimes", params={"date": day.isoformat(), "theater": name}).json()
+    assert one and all(s["theater"] == name for s in one)
+
+
 def test_stats_and_ws(client):
     stats = client.get("/api/stats/booking-rates").json()
     assert "movies" in stats and "top" in stats

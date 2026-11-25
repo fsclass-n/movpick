@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager, suppress
 
 from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import func, select, text
+from sqlalchemy import func, inspect, select, text
 
 from .config import settings
 from .db import Base, SessionLocal, engine
@@ -21,8 +21,19 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 log = logging.getLogger("movpick")
 
 
+def _migrate() -> None:
+    """경량 스키마 마이그레이션: 누락 컬럼 추가 + 기존 데이터 백필."""
+    cols = {c["name"] for c in inspect(engine).get_columns("showtimes")}
+    with engine.begin() as conn:
+        if "region" not in cols:
+            conn.execute(text("ALTER TABLE showtimes ADD COLUMN region VARCHAR(20)"))
+            # 기존 수집 지점은 모두 서울 지점
+            conn.execute(text("UPDATE showtimes SET region='seoul' WHERE region IS NULL"))
+
+
 def init_db() -> None:
     Base.metadata.create_all(engine)
+    _migrate()
     with SessionLocal() as db:
         ensure_env_admin(db)
         if settings.demo_login_enabled:

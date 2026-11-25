@@ -29,6 +29,7 @@ class IngestItem(BaseModel):
     total_seats: int = Field(ge=1, le=2000)
     available_seats: int = Field(ge=0, le=2000)
     rating: str | None = Field(None, max_length=20)
+    region: str | None = Field(None, max_length=20)
     booking_url: str | None = Field(None, max_length=500)
     poster_url: str | None = Field(None, max_length=500)
 

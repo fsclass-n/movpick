@@ -66,6 +66,8 @@ class Settings:
     rpa_headless: bool = _bool("RPA_HEADLESS", True)
     rpa_timeout_seconds: int = _int("RPA_TIMEOUT_SECONDS", 20)
     crawl_interval_minutes: int = _int("CRAWL_INTERVAL_MINUTES", 30)
+    # 주기 수집 일수 (오늘부터 N일치 상영표 수집, 달력에서 선택 가능한 범위)
+    crawl_days: int = min(7, max(1, _int("CRAWL_DAYS", 3)))
     seat_monitor_interval_seconds: int = _int("SEAT_MONITOR_INTERVAL_SECONDS", 20)
     seat_simulation: bool = _bool("SEAT_SIMULATION", True)
     rpa_proxy_url: str = _str("RPA_PROXY_URL")

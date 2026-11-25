@@ -38,6 +38,7 @@ class Showtime(Base):
     chain: Mapped[str] = mapped_column(String(20), index=True)
     external_id: Mapped[str] = mapped_column(String(128))
     theater: Mapped[str] = mapped_column(String(100))
+    region: Mapped[str | None] = mapped_column(String(20), nullable=True, index=True)
     screen: Mapped[str] = mapped_column(String(100))
     movie_title: Mapped[str] = mapped_column(String(200), index=True)
     rating: Mapped[str | None] = mapped_column(String(20), nullable=True)

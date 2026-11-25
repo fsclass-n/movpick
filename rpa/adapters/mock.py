@@ -6,10 +6,11 @@ from datetime import date, datetime, timedelta
 from ..models import ShowtimeData
 from .base import BaseAdapter
 
+# (극장명, region) — 실제 어댑터와 같은 지점명·지역 분포 사용
 THEATERS = {
-    "cgv": ["CGV 강남", "CGV 용산아이파크몰"],
-    "megabox": ["메가박스 코엑스", "메가박스 강남"],
-    "lotte": ["롯데시네마 월드타워", "롯데시네마 가산디지털"],
+    "cgv": [("CGV 강남", "seoul"), ("CGV 용산아이파크몰", "seoul"), ("CGV 동탄", "gyeonggi"), ("CGV 인천", "incheon")],
+    "megabox": [("메가박스 코엑스", "seoul"), ("메가박스 강남", "seoul"), ("메가박스 동탄", "gyeonggi"), ("메가박스 송도", "incheon")],
+    "lotte": [("롯데시네마 월드타워", "seoul"), ("롯데시네마 홍대입구", "seoul"), ("롯데시네마 수원(수원역)", "gyeonggi"), ("롯데시네마 부평역사", "incheon")],
 }
 SCREENS = [("1관", 172), ("3관 IMAX", 300), ("5관 Dolby", 248), ("7관 리클라이너", 96), ("9관", 140)]
 MOVIES = [
@@ -32,7 +33,7 @@ class MockAdapter(BaseAdapter):
     def fetch(self, day: date) -> list[ShowtimeData]:
         rng = random.Random(f"{self.chain}-{day.isoformat()}")
         items: list[ShowtimeData] = []
-        for theater in THEATERS.get(self.chain, [f"{self.chain} 극장"]):
+        for theater, region in THEATERS.get(self.chain, [(f"{self.chain} 극장", "seoul")]):
             for idx, (screen, seats) in enumerate(rng.sample(SCREENS, 3)):
                 title, rating, runtime = MOVIES[(idx + rng.randrange(len(MOVIES))) % len(MOVIES)]
                 start = datetime(day.year, day.month, day.day, 9, 30) + timedelta(minutes=rng.randrange(0, 90, 10))
@@ -47,6 +48,7 @@ class MockAdapter(BaseAdapter):
                         chain=self.chain,
                         external_id=f"mock-{theater}-{screen}-{start:%Y%m%d%H%M}",
                         theater=theater,
+                        region=region,
                         screen=screen,
                         movie_title=title,
                         rating=rating,

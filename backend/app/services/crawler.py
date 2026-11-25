@@ -47,6 +47,7 @@ def persist(result: CrawlResult, trigger: str) -> int:
             else:
                 layout = st.seat_layout
             st.theater, st.screen, st.movie_title, st.rating = item.theater, item.screen, item.movie_title, item.rating
+            st.region = item.region
             st.start_at, st.end_at, st.booking_url, st.poster_url = item.start_at, item.end_at, item.booking_url, item.poster_url
             st.source = result.source
             st.seat_layout = layout
@@ -147,8 +148,8 @@ class CrawlerManager:
             results = []
             try:
                 for chain in chains or CHAINS:
-                    for day in (date.today(), date.today() + timedelta(days=1)):
-                        results.append(await self._crawl_one(chain, day, trigger))
+                    for i in range(settings.crawl_days):
+                        results.append(await self._crawl_one(chain, date.today() + timedelta(days=i), trigger))
             finally:
                 self.running = False
                 self.last_finished_at = datetime.now()

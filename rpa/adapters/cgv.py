@@ -10,7 +10,18 @@ BOOKING_PAGE = "https://cgv.co.kr/cnm/movieBook"
 SCHEDULE_API = "https://cgv.co.kr/api/v1/booking/searchMovScnInfo?coCd=A420&siteNo={site}&scnYmd={de}&rtctlScopCd=08"
 POSTER_BASE = "https://cdn.cgv.co.kr/cgvpomsfilm/Movie/Thumbnail/Poster/"
 POSTER_SIZE = re.compile(r"_\d+\.jpg$")  # API 가 주는 _185 는 CDN 미제공 → _320 사용
-SITES = ["0056", "0013"]  # 강남, 용산아이파크몰
+# (siteNo, region) — 지점 목록은 searchRegnSiteList?regnGrpCd=01(서울)/02(경기)/03(인천) 응답 기준
+SITES = [
+    ("0056", "seoul"),     # 강남
+    ("0013", "seoul"),     # 용산아이파크몰
+    ("0074", "seoul"),     # 왕십리
+    ("0106", "gyeonggi"),  # 동탄
+    ("0054", "gyeonggi"),  # 일산
+    ("0041", "gyeonggi"),  # 동수원
+    ("0002", "incheon"),   # 인천
+    ("0021", "incheon"),   # 부평
+    ("0325", "incheon"),   # 송도타임스페이스
+]
 
 # Cloudflare WAF 는 브라우저 XHR 형태(Referer/Origin/Sec-Fetch-*)가 아닌 요청을 403 으로 차단
 XHR_HEADERS = {
@@ -49,7 +60,7 @@ class CgvAdapter(BaseAdapter):
 
     def fetch(self, day: date) -> list[ShowtimeData]:
         de = day.strftime("%Y%m%d")
-        urls = [SCHEDULE_API.format(site=s, de=de) for s in SITES]
+        urls = [SCHEDULE_API.format(site=s, de=de) for s, _ in SITES]
         try:
             responses = self._fetch_http(urls)
             self.via = "http"
@@ -59,7 +70,8 @@ class CgvAdapter(BaseAdapter):
                 self.via = "playwright"
             except CrawlError as e:
                 raise CrawlError(f"{http_error} / {e}") from e
-        items = [self._item(m, de) for res in responses for m in (res.get("data") or [])]
+        items = [self._item(m, de, region) for (_, region), res in zip(SITES, responses)
+                 for m in (res.get("data") or [])]
         if not items:
             raise CrawlError("CGV 상영 시간표가 비어 있습니다.")
         return items
@@ -95,13 +107,14 @@ class CgvAdapter(BaseAdapter):
                 raise CrawlError(f"Playwright 수집 차단: HTTP {res['status']}")
         return [r["body"] for r in responses]
 
-    def _item(self, m: dict, de: str) -> ShowtimeData:
+    def _item(self, m: dict, de: str, region: str | None = None) -> ShowtimeData:
         scn_day = datetime.strptime(m.get("scnYmd") or de, "%Y%m%d").date()
         poster = m.get("physcFilePathnm")
         return ShowtimeData(
             chain=self.chain,
             external_id=f"{m['siteNo']}-{m['scnYmd']}-{m['scnsNo']}-{m['scnSseq']}",
             theater=m.get("siteNm") or f"CGV {m.get('siteNo')}",
+            region=region,
             screen=m.get("expoScnsNm") or m.get("scnsNm") or "",
             movie_title=m.get("movNm") or m.get("prodNm") or "",
             rating=m.get("cratgClsNm"),

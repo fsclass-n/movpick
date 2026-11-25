@@ -4,6 +4,13 @@ export const CHAINS = {
   lotte: { label: '롯데시네마', color: '#f97316' },
 }
 
+// 수집 지역 (rpa/models.py REGIONS 와 동일 값 유지)
+export const REGIONS = {
+  seoul: { label: '서울' },
+  gyeonggi: { label: '경기' },
+  incheon: { label: '인천' },
+}
+
 export const PASSWORD_RULES = [
   { id: 'len', label: '8자 이상', test: (v) => v.length >= 8 },
   { id: 'lower', label: '영문 소문자', test: (v) => /[a-z]/.test(v) },
@@ -17,6 +24,11 @@ export const isValidEmail = (v) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)
 
 const pad = (n) => String(n).padStart(2, '0')
 export const toDateParam = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+export const fromDateParam = (p) => {
+  const [y, m, d] = (p || '').split('-').map(Number)
+  return new Date(y, (m || 1) - 1, d || 1)
+}
+export const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토']
 export const fmtTime = (iso) => {
   const d = new Date(iso)
   return `${pad(d.getHours())}:${pad(d.getMinutes())}`

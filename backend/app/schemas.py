@@ -56,6 +56,7 @@ class ShowtimeOut(BaseModel):
     id: int
     chain: str
     theater: str
+    region: str | None = None
     screen: str
     movie_title: str
     rating: str | None

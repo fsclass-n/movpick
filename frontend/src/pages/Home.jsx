@@ -256,8 +256,15 @@ export default function Home() {
           <div className="relative ml-auto">
             <select value={theater} onChange={(e) => pickTheater(e.target.value)} aria-label="극장 선택"
               className="chip appearance-none border-line bg-surface pr-8 text-fg outline-none transition focus:border-accent">
-              <option value="">극장 전체{region || chain ? ` (${theaterOptions.length})` : ''}</option>
-              {theaterOptions.map((t) => <option key={t.theater} value={t.theater}>{t.theater}</option>)}
+              <option value="">극장 전체 ({theaterOptions.length})</option>
+              {Object.entries(REGIONS)
+                .map(([rk, rv]) => [rk, rv, theaterOptions.filter((t) => t.region === rk)])
+                .filter(([, , list]) => list.length)
+                .map(([rk, rv, list]) => (
+                  <optgroup key={rk} label={rv.label}>
+                    {list.map((t) => <option key={t.theater} value={t.theater}>{t.theater}</option>)}
+                  </optgroup>
+                ))}
             </select>
             <FontAwesomeIcon icon={faChevronDown} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-muted" />
           </div>

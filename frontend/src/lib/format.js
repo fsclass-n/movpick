@@ -8,7 +8,6 @@ export const CHAINS = {
 export const REGIONS = {
   seoul: { label: '서울' },
   gyeonggi: { label: '경기' },
-  incheon: { label: '인천' },
 }
 
 export const PASSWORD_RULES = [

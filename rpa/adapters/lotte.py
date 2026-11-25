@@ -7,19 +7,22 @@ from ..models import ShowtimeData
 from .base import USER_AGENT, BaseAdapter, CrawlError, parse_hm
 
 ENDPOINT = "https://www.lottecinema.co.kr/LCWS/Ticketing/TicketingData.aspx"
+LIST_ENDPOINT = "https://www.lottecinema.co.kr/LCWS/Cinema/CinemaData.aspx"
 BOOKING_URL = "https://www.lottecinema.co.kr/NLCHS/Ticketing"
 
-# (cinemaID = 지역구분|상세지역|영화관코드, region) — GetCinemaItems 응답 기준
-CINEMAS = [
+# GetCinemaItems 의 DetailDivisionCode: 0001=서울, 0002=경기·인천 혼합
+# 0002 에는 인천 지점도 섞여 있어 이름으로 제외한다
+DIVISION_REGION = {"0001": "seoul", "0002": "gyeonggi"}
+INCHEON_TOKENS = ("인천", "부평", "검단", "청라", "송도", "계양", "주안", "연수")
+
+# 지점 목록 조회 실패 시 사용하는 대표 지점 (cinemaID = 지역구분|상세지역|영화관코드)
+FALLBACK_CINEMAS = [
     ("1|0001|1016", "seoul"),    # 월드타워
     ("1|0001|1013", "seoul"),    # 가산디지털
     ("1|0001|1005", "seoul"),    # 홍대입구
     ("1|0002|3024", "gyeonggi"), # 수원(수원역)
     ("1|0002|3048", "gyeonggi"), # 동탄
     ("1|0002|9129", "gyeonggi"), # 하남미사
-    ("1|0002|3008", "incheon"),  # 부평역사
-    ("1|0002|3038", "incheon"),  # 인천터미널
-    ("1|0002|3051", "incheon"),  # 검단아라
 ]
 
 
@@ -27,12 +30,30 @@ class LotteAdapter(BaseAdapter):
     chain = "lotte"
     label = "롯데시네마"
 
+    def _cinemas(self, s: requests.Session) -> list[tuple[str, str]]:
+        """서울·경기 전 지점 (cinemaID, region). 목록 조회 실패 시 대표 지점으로 대체."""
+        param = {"MethodName": "GetCinemaItems", "channelType": "HO", "osType": "W",
+                 "osVersion": USER_AGENT, "divisionList": [], "favoriteMovieList": [], "memberSeq": ""}
+        try:
+            res = s.post(LIST_ENDPOINT, data={"paramList": json.dumps(param)}, timeout=self.timeout)
+            res.raise_for_status()
+            cinemas = [
+                (f"1|{it['DetailDivisionCode']}|{it['CinemaID']}", region)
+                for it in (res.json().get("Cinemas") or {}).get("Items") or []
+                if it.get("DivisionCode") == 1
+                for region in (DIVISION_REGION.get(it.get("DetailDivisionCode") or ""),)
+                if region and not any(t in (it.get("CinemaNameKR") or "") for t in INCHEON_TOKENS)
+            ]
+            return cinemas or FALLBACK_CINEMAS
+        except Exception:  # noqa: BLE001
+            return FALLBACK_CINEMAS
+
     def fetch(self, day: date) -> list[ShowtimeData]:
         items: list[ShowtimeData] = []
         with requests.Session() as s:
             s.proxies.update(self.requests_proxies or {})
             s.headers.update({"User-Agent": USER_AGENT, "Referer": "https://www.lottecinema.co.kr/"})
-            for cinema, region in CINEMAS:
+            for cinema, region in self._cinemas(s):
                 param = {"MethodName": "GetPlaySequence", "channelType": "HO", "osType": "W",
                          "osVersion": USER_AGENT, "playDate": day.isoformat(), "cinemaID": cinema,
                          "representationMovieCode": ""}

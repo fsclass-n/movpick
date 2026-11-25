@@ -8,9 +8,9 @@ from .base import BaseAdapter
 
 # (극장명, region) — 실제 어댑터와 같은 지점명·지역 분포 사용
 THEATERS = {
-    "cgv": [("CGV 강남", "seoul"), ("CGV 용산아이파크몰", "seoul"), ("CGV 동탄", "gyeonggi"), ("CGV 인천", "incheon")],
-    "megabox": [("메가박스 코엑스", "seoul"), ("메가박스 강남", "seoul"), ("메가박스 동탄", "gyeonggi"), ("메가박스 송도", "incheon")],
-    "lotte": [("롯데시네마 월드타워", "seoul"), ("롯데시네마 홍대입구", "seoul"), ("롯데시네마 수원(수원역)", "gyeonggi"), ("롯데시네마 부평역사", "incheon")],
+    "cgv": [("CGV 강남", "seoul"), ("CGV 용산아이파크몰", "seoul"), ("CGV 동탄", "gyeonggi"), ("CGV 일산", "gyeonggi")],
+    "megabox": [("메가박스 코엑스", "seoul"), ("메가박스 강남", "seoul"), ("메가박스 동탄", "gyeonggi"), ("메가박스 고양스타필드", "gyeonggi")],
+    "lotte": [("롯데시네마 월드타워", "seoul"), ("롯데시네마 홍대입구", "seoul"), ("롯데시네마 수원(수원역)", "gyeonggi"), ("롯데시네마 동탄", "gyeonggi")],
 }
 SCREENS = [("1관", 172), ("3관 IMAX", 300), ("5관 Dolby", 248), ("7관 리클라이너", 96), ("9관", 140)]
 MOVIES = [

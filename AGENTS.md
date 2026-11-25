@@ -20,7 +20,7 @@
 - Timestamps are naive local time (`datetime.now`); Docker sets `TZ=Asia/Seoul`.
 - Backend must run with a single worker (crawler/monitor loops live in-process).
 - Tailwind v4: custom reusable classes are defined with `@utility` in `frontend/src/index.css`.
-- Region codes (`seoul`/`gyeonggi`/`incheon`) are defined once in `rpa/models.py` (`REGIONS`) and mirrored in `frontend/src/lib/format.js` (`REGIONS`); adapter branch lists carry the code per branch. Crawl window = `CRAWL_DAYS` (default 3 days).
+- Region codes (`seoul`/`gyeonggi`) are defined once in `rpa/models.py` (`REGIONS`) and mirrored in `frontend/src/lib/format.js` (`REGIONS`); adapters discover all 서울/경기 branches from each chain's branch-list API (fallback list on failure). Crawl window = `CRAWL_DAYS` (default 3 days).
 
 ## Video (docs/video)
 - Single source of truth for timing/narration: `docs/video/tools/video_scenes.py` (total must be exactly 600s).

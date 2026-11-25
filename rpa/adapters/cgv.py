@@ -8,19 +8,21 @@ from .base import USER_AGENT, BaseAdapter, CrawlError, parse_hm
 
 BOOKING_PAGE = "https://cgv.co.kr/cnm/movieBook"
 SCHEDULE_API = "https://cgv.co.kr/api/v1/booking/searchMovScnInfo?coCd=A420&siteNo={site}&scnYmd={de}&rtctlScopCd=08"
+SITE_LIST_API = "https://cgv.co.kr/api/v1/booking/searchRegnSiteList?coCd=A420&regnGrpCd={cd}"
 POSTER_BASE = "https://cdn.cgv.co.kr/cgvpomsfilm/Movie/Thumbnail/Poster/"
 POSTER_SIZE = re.compile(r"_\d+\.jpg$")  # API 가 주는 _185 는 CDN 미제공 → _320 사용
-# (siteNo, region) — 지점 목록은 searchRegnSiteList?regnGrpCd=01(서울)/02(경기)/03(인천) 응답 기준
-SITES = [
+
+# regnGrpCd → 지역 코드 (서울·경기 전 지점 수집)
+REGION_GROUPS = {"01": "seoul", "02": "gyeonggi"}
+
+# 지점 목록 조회 실패 시 사용하는 대표 지점
+FALLBACK_SITES = [
     ("0056", "seoul"),     # 강남
     ("0013", "seoul"),     # 용산아이파크몰
     ("0074", "seoul"),     # 왕십리
     ("0106", "gyeonggi"),  # 동탄
     ("0054", "gyeonggi"),  # 일산
     ("0041", "gyeonggi"),  # 동수원
-    ("0002", "incheon"),   # 인천
-    ("0021", "incheon"),   # 부평
-    ("0325", "incheon"),   # 송도타임스페이스
 ]
 
 # Cloudflare WAF 는 브라우저 XHR 형태(Referer/Origin/Sec-Fetch-*)가 아닌 요청을 403 으로 차단
@@ -58,9 +60,25 @@ class CgvAdapter(BaseAdapter):
     chain = "cgv"
     label = "CGV"
 
+    def _sites(self) -> list[tuple[str, str]]:
+        """서울·경기 전 지점 (siteNo, region). 목록 조회 실패 시 대표 지점으로 대체."""
+        sites: list[tuple[str, str]] = []
+        try:
+            with requests.Session() as s:
+                s.headers.update(XHR_HEADERS)
+                s.proxies.update(self.requests_proxies or {})
+                for cd, region in REGION_GROUPS.items():
+                    res = s.get(SITE_LIST_API.format(cd=cd), timeout=self.timeout)
+                    if res.ok:
+                        sites += [(x["siteNo"], region) for x in (res.json().get("data") or []) if x.get("siteNo")]
+        except Exception:  # noqa: BLE001
+            pass
+        return sites or FALLBACK_SITES
+
     def fetch(self, day: date) -> list[ShowtimeData]:
         de = day.strftime("%Y%m%d")
-        urls = [SCHEDULE_API.format(site=s, de=de) for s, _ in SITES]
+        sites = self._sites()
+        urls = [SCHEDULE_API.format(site=s, de=de) for s, _ in sites]
         try:
             responses = self._fetch_http(urls)
             self.via = "http"
@@ -70,7 +88,7 @@ class CgvAdapter(BaseAdapter):
                 self.via = "playwright"
             except CrawlError as e:
                 raise CrawlError(f"{http_error} / {e}") from e
-        items = [self._item(m, de, region) for (_, region), res in zip(SITES, responses)
+        items = [self._item(m, de, region) for (_, region), res in zip(sites, responses)
                  for m in (res.get("data") or [])]
         if not items:
             raise CrawlError("CGV 상영 시간표가 비어 있습니다.")

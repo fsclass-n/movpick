@@ -66,7 +66,7 @@ def list_showtimes(
     if q:
         like = f"%{q}%"
         stmt = stmt.where(or_(Showtime.movie_title.like(like), Showtime.theater.like(like)))
-    return db.scalars(stmt.order_by(Showtime.start_at, Showtime.theater).limit(1000)).all()
+    return db.scalars(stmt.order_by(Showtime.start_at, Showtime.theater).limit(20000)).all()
 
 
 @router.get("/movies")

@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager, suppress
 
 from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from sqlalchemy import func, inspect, select, text
 
 from .config import settings
@@ -29,6 +30,9 @@ def _migrate() -> None:
             conn.execute(text("ALTER TABLE showtimes ADD COLUMN region VARCHAR(20)"))
             # 기존 수집 지점은 모두 서울 지점
             conn.execute(text("UPDATE showtimes SET region='seoul' WHERE region IS NULL"))
+        # 수집 대상에서 빠진 지역 데이터 정리
+        conn.execute(text("DELETE FROM seat_watches WHERE showtime_id IN (SELECT id FROM showtimes WHERE region='incheon')"))
+        conn.execute(text("DELETE FROM showtimes WHERE region='incheon'"))
 
 
 def init_db() -> None:
@@ -57,6 +61,7 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(title="movpick API", version="1.0.0", lifespan=lifespan,
               description="RPA 기반 영화 상영 시간표 동기화 · 명당 자리 실시간 예매 추천 API")
+app.add_middleware(GZipMiddleware, minimum_size=1000)  # 서울·경기 전 지점 상영표 응답 압축
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.frontend_origins,

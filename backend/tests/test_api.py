@@ -141,11 +141,11 @@ def test_showtimes_region_and_theater_filters(client):
     assert seoul and all(s["region"] == "seoul" for s in seoul) and len(seoul) < len(all_shows)
 
     theaters = client.get("/api/theaters").json()
-    assert any(t["region"] == "incheon" for t in theaters)
+    assert any(t["region"] == "gyeonggi" for t in theaters)
     assert client.get("/api/regions").json() == [
-        {"id": "seoul", "label": "서울"}, {"id": "gyeonggi", "label": "경기"}, {"id": "incheon", "label": "인천"}]
+        {"id": "seoul", "label": "서울"}, {"id": "gyeonggi", "label": "경기"}]
 
-    name = next(t["theater"] for t in theaters if t["region"] == "incheon")
+    name = next(t["theater"] for t in theaters if t["region"] == "gyeonggi")
     one = client.get("/api/showtimes", params={"date": day.isoformat(), "theater": name}).json()
     assert one and all(s["theater"] == name for s in one)
 
